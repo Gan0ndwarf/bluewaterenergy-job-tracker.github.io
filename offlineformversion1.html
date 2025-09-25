@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="en">
+<head>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0b69ff">
+<script>
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("service-worker.js")
+      .then(() => console.log("Service Worker registered"));
+  }
+</script>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Offline Job Form</title>
+<style>
+  body{font-family:system-ui,Segoe UI,Roboto,Arial; margin:0; padding:12px; background:#f6f7fb; color:#111}
+  h1{background:#0b69ff; color:white; padding:10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;}
+  .btn{padding:8px 12px; border-radius:6px; border:0; cursor:pointer;}
+  .btn.primary{background:#0b69ff; color:white;}
+  .btn.secondary{background:#ff6a00; color:white;}
+  .card{background:white; padding:12px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.08); margin-bottom:12px; border-left:6px solid #0b69ff;}
+  .hidden{display:none}
+  img.preview{max-width:120px; margin:4px; border:1px solid #ccc; border-radius:6px}
+  table{border-collapse:collapse; width:100%; margin-top:6px;}
+  th,td{border:1px solid #ccc; padding:4px;}
+  h3{color:#0b69ff; border-bottom:2px solid #ff6a00; padding-bottom:4px;}
+</style>
+</head>
+<body>
+
+<h1>Bluewater Job Tracker</h1>
+
+<div id="jobListView" class="card">
+  <button class="btn primary" id="newJobBtn">+ New Job</button>
+  <div id="jobsContainer"></div>
+</div>
+
+<div id="jobEditorView" class="card hidden" style="padding:12px;">
+  <h2 id="editorTitle">Edit Job</h2>
+
+  <label>Job Title:<br>
+    <input type="text" id="jobTitle">
+  </label><br><br>
+
+  <label>Date Performed:<br>
+    <input type="date" id="jobDate">
+  </label><br><br>
+
+  <h3>Team Members</h3>
+  <div id="techList"></div>
+
+  <h3>Project Type</h3>
+  <input type="text" id="projectType"><br><br>
+
+  <label>Shop Departure Time:<br>
+    <input type="time" id="shopDepart">
+  </label><br><br>
+  <label>Arrival Time:<br>
+    <input type="time" id="arrivalTime">
+  </label><br><br>
+
+  <h3>Work Completed</h3>
+  <textarea id="workCompleted" rows="4"></textarea><br><br>
+
+  <!-- Inverter -->
+  <h3>Inverter</h3>
+  Make:<br> <input type="text" id="inverterMake"><br><br>
+  Model:<br> <input type="text" id="inverterModel"><br><br>
+  Serial:<br> <input type="text" id="inverterSerial"><br><br>
+  Photos:<br>
+  <input type="file" id="inverterPhotos" accept="image/*" multiple>
+  <div id="inverterPreview"></div><br>
+
+  <!-- Battery -->
+  <h3>Battery</h3>
+  Make:<br> <input type="text" id="batteryMake"><br><br>
+  Model:<br> <input type="text" id="batteryModel"><br><br>
+  Serial:<br> <input type="text" id="batterySerial"><br><br>
+  Photos:<br>
+  <input type="file" id="batteryPhotos" accept="image/*" multiple>
+  <div id="batteryPreview"></div><br>
+
+  <!-- Parts Used -->
+  <h3>Other Parts Used</h3>
+  <input type="text" id="partSearch" placeholder="Search parts" oninput="filterParts()">
+  <button type="button" class="btn secondary" onclick="addCustomPart()">Add Custom</button>
+  <div id="partResults"></div>
+  <table>
+    <thead><tr><th>Part</th><th>Qty</th><th></th></tr></thead>
+    <tbody id="partsTable"></tbody>
+  </table><br>
+
+  <!-- Work Photos -->
+  <h3>Pictures of Work Completed</h3>
+  <input type="file" id="workPhotos" accept="image/*" multiple>
+  <div id="workPreview"></div><br>
+
+  <h3>What We Said to Client</h3>
+  <textarea id="clientNotes" rows="4"></textarea><br><br>
+
+  <h3>Remaining Work to be Completed</h3>
+  <textarea id="remainingWork" rows="4"></textarea><br><br>
+
+  <h3>Materials Needed</h3>
+  <textarea id="materialsNeeded" rows="4"></textarea><br><br>
+
+  <label>Left Site Time:<br>
+    <input type="time" id="leftSite">
+  </label><br><br>
+  <label>Arrived at Shop/Next Site Time:<br>
+    <input type="time" id="arrivedShop">
+  </label><br><br>
+
+  <button class="btn primary" id="saveJobBtn">Save</button>
+  <button class="btn secondary" id="backListBtn">Back</button>
+  <button class="btn primary" id="exportPDFBtn">Save & Export PDF</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+const STORE_KEY="jobs_form_v2";
+let jobs=JSON.parse(localStorage.getItem(STORE_KEY)||"[]");
+let currentJob=null;
+
+function saveJobs(){localStorage.setItem(STORE_KEY,JSON.stringify(jobs));}
+function renderJobs(){
+  const c=document.getElementById("jobsContainer"); c.innerHTML="";
+  if(!jobs.length){c.innerHTML="<i>No jobs yet</i>";return;}
+  jobs.forEach((j,i)=>{
+    const d=document.createElement("div");
+    d.className="card"; d.style.cursor="pointer";
+    d.innerHTML=`${j.title||"(untitled)"} — ${j.date||""} — ${j.projectType||""}
+      <button onclick="deleteJob(${i});event.stopPropagation();" style="float:right;">❌</button>`;
+    d.onclick=()=>openJob(i);
+    c.appendChild(d);
+  });
+}
+function deleteJob(i){ if(confirm("Delete this job?")){ jobs.splice(i,1); saveJobs(); renderJobs(); } }
+
+const technicians=["Wil","Brandon","Liam","Conrad","Gerry","Tom"];
+
+function newJob(){
+  currentJob={title:"",date:"",team:[],projectType:"",shopDepart:"",arrivalTime:"",
+              workCompleted:"",inverter:{make:"",model:"",serial:"",photos:[]},
+              battery:{make:"",model:"",serial:"",photos:[]},parts:[],
+              workPhotos:[],clientNotes:"",remainingWork:"",materialsNeeded:"",
+              leftSite:"",arrivedShop:""};
+  jobs.push(currentJob); saveJobs(); openJob(jobs.length-1);
+}
+function openJob(idx){
+  currentJob=jobs[idx]; currentJob.idx=idx;
+  document.getElementById("jobListView").classList.add("hidden");
+  document.getElementById("jobEditorView").classList.remove("hidden");
+  document.getElementById("jobTitle").value=currentJob.title||"";
+  document.getElementById("jobDate").value=currentJob.date||"";
+  document.getElementById("projectType").value=currentJob.projectType||"";
+  document.getElementById("shopDepart").value=currentJob.shopDepart||"";
+  document.getElementById("arrivalTime").value=currentJob.arrivalTime||"";
+  document.getElementById("workCompleted").value=currentJob.workCompleted||"";
+  document.getElementById("inverterMake").value=currentJob.inverter.make||"";
+  document.getElementById("inverterModel").value=currentJob.inverter.model||"";
+  document.getElementById("inverterSerial").value=currentJob.inverter.serial||"";
+  document.getElementById("batteryMake").value=currentJob.battery.make||"";
+  document.getElementById("batteryModel").value=currentJob.battery.model||"";
+  document.getElementById("batterySerial").value=currentJob.battery.serial||"";
+  document.getElementById("clientNotes").value=currentJob.clientNotes||"";
+  document.getElementById("remainingWork").value=currentJob.remainingWork||"";
+  document.getElementById("materialsNeeded").value=currentJob.materialsNeeded||"";
+  document.getElementById("leftSite").value=currentJob.leftSite||"";
+  document.getElementById("arrivedShop").value=currentJob.arrivedShop||"";
+  renderTechs();
+  renderParts();
+  setupPhotoInput("inverterPhotos", currentJob.inverter.photos, "inverterPreview");
+  setupPhotoInput("batteryPhotos", currentJob.battery.photos, "batteryPreview");
+  setupPhotoInput("workPhotos", currentJob.workPhotos, "workPreview");
+}
+function backToList(){ document.getElementById("jobEditorView").classList.add("hidden"); document.getElementById("jobListView").classList.remove("hidden"); renderJobs(); }
+
+function renderTechs(){
+  const c=document.getElementById("techList"); c.innerHTML="";
+  technicians.forEach(t=>{
+    const id="tech_"+t;
+    const cb=document.createElement("input");
+    cb.type="checkbox"; cb.id=id; cb.value=t;
+    if(currentJob.team&&currentJob.team.includes(t)) cb.checked=true;
+    cb.onchange=()=>{if(cb.checked){currentJob.team.push(t);}else{currentJob.team=currentJob.team.filter(x=>x!==t);} saveJobs();};
+    const lab=document.createElement("label"); lab.htmlFor=id; lab.textContent=t;
+    c.appendChild(cb); c.appendChild(lab); c.appendChild(document.createElement("br"));
+  });
+}
+
+// Parts
+function filterParts(){
+  const q=document.getElementById("partSearch").value.toLowerCase();
+  const res=document.getElementById("partResults"); res.innerHTML="";
+  if(!q) return;
+  [{search:"6/3 nmd",office:"W-NMD90-6/3C"},{search:"1 inch teck connector",office:"TEKCON-100"},{search:"HB SKYRAIL3 FLUSH MOUNT- 5.945M LONG EXTRUSION FOR CLICLOC CLAMP", office:"HB-8395-5945"},
+  {search:"FLUSH MOUNT SPLICE BAR FOR SKYRAIL3 WITH BONDING WASHER", office:"HB-1946"},
+  { search:"HB FLASHGUARD FLASHING KIT - MILL FINISH", office:"HB-99103" },
+  { search:"HBSOLAR STANDING SEAM CLAMP WITH ONE TOP HOLE, 2 SIDE HOLES", office:"HB-98121-02" },
+  { search:"HBSOLAR MB2 MIRACLE CONNECTING BRACKET KIT (4.7MM THICK)", office:"HB-92873" },
+  { search:"HBSOLAR MID-CLAMP UNIVERSAL WITH INTEGRATED BONDING/GROUNDING", office:"HB-1421b_MC" },
+  { search:"HB END CLAMP FOR 30MM FRAME THICKNESS WITH INTEGRATED BONDING/ GROUNDING", office:"HB-1422b-EC_30" },
+  { search:"END CLAMP 32MM FRAME THICKNESS WITH INTEGRATED BONDING/GROUNDING NODES (ETL RATED)", office:"HB-1422b-EC_32" },
+  { search:"END CLAMP 35MM FRAME THICKNESS WITH INTEGRATED BONDING/GROUNDING NODES (ETL RATED)", office:"HB-1422b-EC_35" },
+  { search:"END CLAMP 40MM FRAME THICKNESS WITH INTEGRATED BONDING/GROUNDING NODES (ETL RATED)", office:"HB-1422b-EC_40" },
+  { search:"HBSOLAR MID-CLAMP UNIVERSAL BLACK ANODIZED WITH INTEGRATED BONDING/GROUNDING", office:"HB-1421b_MCB" },
+  { search:"BLACK END CLAMP 35MM FRAME THICKNESS, WITH INTEGRATED BONDING/GROUNDING NODES (ETL RATED)", office:"HB-1422b-ECB_35" },
+  { search:"TBOLT M8 X 20mm", office:"HB-3220" },
+  { search:"T-BOLT M8 X 20MM FOR T8 SLOT SS - FOR MICROINVERTER W/ SKYRAIL 3", office:"HB-3220 T8" },
+  { search:"HB FLANGE NUT M8 WITH SERRATION", office:"HB-3501" },
+  { search:"HBSOLAR L-FOOT, STANDARD", office:"HB-1831" },
+  { search:"HB SOLAR L-FOOT- KITTED FOR HANGAR BOLT (W T-BOLT/NUT)", office:"HB-91831" },
+  { search:"L FOOT KITTED FOR ROOF CHANNEL/AG BRACKET (WITH SLIDE NUT/T-BOLT/NUT", office:"HB-91831-01" },
+  { search:"HBSOLAR ROOF CHANNEL TYPE C 6.1M LONG WITH BUTYL TAPE", office:"HB-98330-6100" },
+  { search:"HB SOLAR AG BRACKET WITH BUTYL TAPE", office:"HB-8321" },
+  { search:"KINETIC SOLAR SQUIRREL GUARD 6\"\" 100FT ROLL", office:"KIN-KHSG6-M" },
+  { search:"KINETIC SOLAR SQUIRREL GUARD 8\"\" 100FT ROLL", office:"KIN-KHSG8-M" },
+  { search:"KINETIC STAINLESS J HOOK FOR SQUIRREL GUARD PACK OF 100", office:"KIN-KHSG-J" },
+  { search:"ALL-BLACK SOLATRIM GEN2 BARRIER PANEL 5.5\"\" X 48\"\", 100FT ROLL", office:"SOLATRIM-GEN2" },
+  { search:"S-5! N MINI STANDING SEAM CLAMP - FOR NAIL STRIP ROOFS - 1\"\"", office:"S5-N-MINI" },
+  { search:"S-5!-N MINI STANDING SEAM CLAMP - MOUNTING CLAMP FOR STANDING SEAM ROOFS", office:"S5-N-1.5-MINI-WB" },
+  { search:"S-5!-N MINI STANDING SEAM CLAMP - MOUNTING CLAMP FOR STANDING SEAM ROOFS", office:"S5-NH-1.5-MINI-WB" },
+  { search:"S-5! S STANDARD CLAMP - MOUNTING CLAMP FOR STANDING SEAM ROOFS", office:"S5-S" },
+  { search:"S-5! S MINI CLAMP - MOUNTING CLAMP FOR STANDING SEAM ROOFS", office:"S5-S-MINI" },
+  { search:"S-5! E MINI CLAMP - MOUNTING CLAMP FOR STANDING SEAM ROOFS", office:"S5-E-MINI" },
+  { search:"S-5!-S M8 BOLT 16MM", office:"S5-M8 BOLT" },
+  { search:"S5 PROTEA BRACKER EXPOSED FASTENER", office:"S5-Protea Bracket" },
+  { search:"S-5! CORRUBRACKET - MOUNTING BRACKET FOR CORRUGATED STEEL ROOF", office:"S5-CORRU" },
+  { search:"Metal to Wood screws 2.5\"\" length", office:"S5 Metal to Wood screws 2.5\"\" length" },
+  { search:"ROOF-TECH MINI 2 BASE + 2 SCREWS, COMES WITH FLANGE BOLT & NUT", office:"RT-RT2-MINI2" },
+  { search:"ROOF-TECH MINI 2 SCREW 5X60 FOR MINI 2 BASE (SOLD AS 100 PACK)", office:"RT-RT2-04-SD5-60" },
+  { search:"ROOF TECH ROOF ENTRY BRACKET - WIRE MANAGEMENT SYSTEM", office:"RT-RT3-04-RFEBBK" },
+  { search:"EJOT 180/70 FZD SOLAR FASTENER SCREW FOR TIMBER SUBSTRUCTURE", office:"EJOT-JA3-SB-8.0-180/70" },
+  { search:"EJOT 130/70 FZD SOLAR FASTENER SCREW FOR TIMBER SUBSTRUCTURE", office:"EJOT-JA3-SB-8.0-130/70" },
+  { search:"ORKAN STORM WASHER TRAPEZOIDAL 35-47 ALU-RAIL, VE 100", office:"EJOT-ORKAN-KALOTTE-35-47" },
+  { search:"THORNOVA TS-BBT54 425W SOLAR PV MODULES, BLACK FRAME-BLACK BACKSHEET, BIFACIAL", office:"THOR-TS-BBT54-425W" },
+  { search:"THORNOVA TS-BB66 500W SOLAR PV MODULES, BLACK FRAME-BLACK BACKSHEET, BIFACIAL", office:"THOR-TS-BB66-500W" },
+  { search:"THORNOVA TS-BGT54 500W SOLAR PV MODULES, BLACK FRAME-BLACK BACKSHEET, BIFACIAL", office:"THOR-TS-BGT54-500W" },
+  { search:"THORNOVA TS-BBT54 500W SOLAR PV MODULES, BLACK FRAME-BLACK BACKSHEET, BIFACIAL - QTY 682", office:"THOR-TS-BBT54-500W" },
+  { search:"LONGI ‐ LR5‐54HPB‐410 BLK, 54/10CELL, MONO, 30MM, STAUBLI MC4", office:"LON-LR5-54HBP-410BLK" },
+  { search:"LONGI - LR7-54HGBB-440M, 54/10 CELL, (ALL BLACK - BIFACIAL) nTOPCON", office:"LON-LR7-54HGBB-440M" },
+  { search:"LONGI - LR7-54HGBB-445M, 54/10 CELL, (ALL BLACK - BIFACIAL) nTOPCON", office:"LON-LR7-54HGBB-445M" },
+  { search:"LONGI - LR7-54HGBB-450M, 54/10 CELL, (ALL BLACK - BIFACIAL) nTOPCON", office:"LON-LR7-54HGBB-450M" },
+  { search:"LONGI - LR4-72HPH-450 72/144CELL MONO, 35mm", office:"LON-LR4-72HPH 450" },
+  { search:"LONGI - LR4-72HPH-460M SOLAR PV MODULE, 72/144CELL MONO, 35MM", office:"LON-LR4-72HPH-460M" },
+  { search:"LONGI 500W SOLAR PV MODULE, 66 CELL, 35MM, SILVER/WHITE", office:"LON-LR5-66HPH-500M" },
+  { search:"LONGI SOLAR 505W MONOFACIAL PV MODULE", office:"LON-LR5-66HPH-505M" },
+  { search:"LONGI SOLAR 550W MONOFACIAL PV MODULE", office:"LON-LR5-72HPH-550M" },
+  { search:"LONGI 360W ALL-BLACK 60 CELL MONO SOLAR MODULE, 35MM, MC4", office:"LON-LR4-60HPB-360M" },
+  { search:"LONGI - LR8-54HGBB-500M, 54/108 CELL, (ALL BLACK - BIFACIAL) N-TYPE HPDC", office:"LON-LR8-54HGBB-500M" },
+  { search:"SOLAREDGE OPTIMIZER 505W MC4 83V", office:"SE-P505" },
+  { search:"SOLAREDGE OPTIMIZER S-500B, UP TO 500W PV MODULE", office:"SE-S500B" },
+  { search:"SOLAREDGE S650B OPTIMIZER 650W", office:"SE-S650B" },
+  { search:"SOLAREDGE OPTIMIZER 440W/60V 15A INPUT MCA 1000VDC cUL", office:"SE-S440 (Waiting on 1 replacement for RMA, Kwan, April 8)" },
+  { search:"GENERAC CLEAN ENERGY SYSTEMS PV LINK, 2500W MPPT SUBSTRING OPTIMIZER", office:"GCE-APKE00010" },
+  { search:"MID-CIRCUIT INTERRUPTER GEN 2 (MCI-2) / RAPID SHUTDOWN (RSD) FOR POWERWALL, 31879359-00-X", office:"TESLA-MCI-2" },
+  { search:"APSYSTEMS RAPID SHUTDOWN SYSTEM", office:"APS-RSD-S-PLC" },
+  { search:"FRONIUS RAPID SHUT DOWN BOX FOR PRIMO - DUO, 600V DC", office:"FR-RAPID-DUO" },
+  { search:"FRONIUS RAPID SHUT DOWN BOX FOR PRIMO - QUATTRO, 600V SDC", office:"FR-RAPID-QUATTRO" },
+  { search:"FRONIUS PRIMO 7.6-1 208-240 ADVANCED", office:"FR-PRIMO-7.6-1 A" },
+  { search:"FRONIUS PRIMO 8.2-1 208-240 ADVANCED", office:"FR-PRIMO-8.2-1 A" },
+  { search:"FRONIUS PRIMO 10.0-1 208-240 ADVANCED", office:"FR-PRIMO-10.0-1" },
+  { search:"FRONIUS PRIMO GEN24 208-240 7.7kW", office:"FR-PRIMO-GEN24 7.7kW" },
+  { search:"SMA 3800W SUNNY BOY W/DC DISCO, AFCI, RSD - SUNSPEC", office:"SMA-SB3.8-1SP-US-41" },
+  { search:"SMA 7000W SUNNY BOY W/DC DISCO, AFCI, RSD-SUNSPEC", office:"SMA-SB7.0-1SP-US-41" },
+  { search:"GENERAC CLEAN ENERGY SYSTEMS PWRCELL INVERTER, 7.6KW SINGLE-PHASE SYSTEM", office:"GCE-APKE00014" },
+  { search:"TESLA POWERWALL 3 AC, 13.5 KWH AC BATTER WITH 11.5 KW SOLAR INVERTER, 1707000", office:"TESLA-POWERWALL 3" },
+  { search:"TESLA ENERGY GATEWAY 3.0", office:"TESLA-GTW-3.0" },
+  { search:"SOLAREDGE SE5000H-US 5.0KW HD WAVE GRID-TIED INVERTER 240V 1-P", office:"SE-5000H-US" },
+  { search:"SOLAREDGE SE6000H-US 6.0KW HD WAVE GRID-TIED INVERTER 240V 1-P", office:"SE-6000H-US" },
+  { search:"SOLAREDGE SE7600H-US 7.6KW HD WAVE GRID-TIED INVERTER 240V 1-P", office:"SE-7600H-US" },
+  { search:"SOLAREDGE SE10000H-US 10KW HD WAVE GRID-TIED INVERTER 240V 1-P", office:"SE-10000H-US" },
+  { search:"SOLAREDGE 7.6KW HOME HUB INVERTER - SE7600H-USSNBBL14", office:"SE-BAT-7600H-HUB" },
+  { search:"SOLAREDGE SE9600H-USMNUBL75 - 9.6KW HOME HUB INVERTER", office:"SE-BAT-9600H-HUB" },
+  { search:"SOLAREDGE SE10000H-USMNFBL15 10KW HOME HUB INVERTER FOR RE-ENERGIZE PROGRAM", office:"SE-BAT-10000H-HUB-RE" },
+  { search:"SOLAREDGE SE10000H-USSNBBL14 10KW HOME HUB INVERTER", office:"SE-BAT-10000H-HUB" },
+  { search:"SAVANT POWER INVERTER WITH DIRECTOR - 100A - 12.5KW", office:"SAV-PS-INV-12.5KW" },
+  { search:"FORTRESS POWER ENVY TRUE 12 KW BATTERY", office:"FOR-ENVY-12KW" },
+  { search:"TESLA EXPANSION 3 FOR POWERWALL 3 SYSTEM, 13.5 KWH DC BATTERY, 1807000", office:"TESLA-EXP-3" },
+  { search:"SOLAREDGE BACKUP INTERFACE UNIT, BI-NUSGN-02, NO MAIN BREAKER", office:"SE-BAT-BUI-NUSGN-02" },
+  { search:"SAVANT POWER STORAGE 20 BATTERY STACK - 20KWH - WITH ENCLOSURE", office:"SAV-PS20-BATT-20KWH" },
+  { search:"SOLAREDGE BATTERY FOR HOME ENERGY STORAGE SYSTEMS, 10KWH ENERGY BANK", office:"SE-BAT-10K1PS0B" },
+  { search:"FORTRESS POWER eVAULT MAX 18.5 kWh BATTERY", office:"FOR-EVAULT-MAX-18.5KWh" },
+  { search:"SMARTER POWER 10KWH SMART BATTERY STORAGE SYSTEM", office:"SP-SBSS-10-10" },
+  { search:"SOLAREDGE 1 PH, 240V ELEC. METER, NEMA3R,", office:"SE-MTR240" },
+  { search:"SOLAREDGE 225A CLAMP STYLE CT, SLIM", office:"SE-CT-225A-T-20" },
+  { search:"TESLA REMOTE ENERGY MONITOR, INCL 2 CTS FOR PARTIAL HOME B/U", office:"TESLA-REM" },
+  { search:"SENSE PRO ENERGY MONITOR (WITHOUT SOLAR BUNDLE)", office:"SENSE ENERGY-MON" },
+  { search:"EMPORIA VUE GENERATION 3 WHOLE HOME ENERGY MONITOR WITH 2 X 200A CTS", office:"EMP-VUE" },
+  { search:"FORTRESS POWER GUARDIAN BATTERY MONITORING", office:"FOR-GUARDIAN-MON" },
+  { search:"TESLA POWERWALL 3 EXPANSION KIT FOR WALL-MOUNT CONFIGURATION, 1978069", office:"TESLA-EXP-3-WALL" },
+  { search:"TESLA POWERWALL 3 EXPANSION KIT FOR STACKED CONFIGURATION, 1978070", office:"TESLA-EXP-3-STACK" },
+  { search:"0.5M LONG HARNESS TO CONNECT TESLA POWERWALL 3 TO EXPANSION(S),1875157-05", office:"TESLA-EXP-3-HARNESS-05" },
+  { search:"2.0 M LONG HARNESS TO CONNECT TESLA POWERWALL 3 TO EXPANSION(S), 1875157-20", office:"TESLA-EXP-3-HARNESS-20" },
+  { search:"4.0 M LONG HARNESS TO CONNECT TESLA POWERWALL 3 TO EXPANSION(S), 1875157-40", office:"TESLA-EXP-3-HARNESS-40" },
+  { search:"POWER-STUD+ SD1 WEDGE ANCHOR ZINC 1/2X5-1/2\"\"", office:"POWER-STUD+ SD1 WEDGE ANCHOR ZINC 1/2X5-1/2\"\"" },
+  { search:"SOLAREDGE PARALLEL BRANCH CONNECTORS MC4, IAC-RBAT-USYCBL-01 FOR HUB INVERTER AND 2+ BATTERIES (PAIR)", office:"SE-BAT-USYCBL" },
+  { search:"IMO 2-STRING DC DISCONNECT WITH SAFE LOCK, 4P 32A 600V, IMO-2106", office:"IMO-SI32-PEL64R-4" },
+  { search:"IMO 4-STRING DC DISCONNECT WITH SAFE LOCK, 8P 48A 600V, IMO-2108", office:"IMO-SI40-PEL64R-8" },
+  { search:"MC4 CONNECTOR FEMALE", office:"MC4-F" },
+  { search:"MC4 CONNECTOR MALE", office:"MC4-M" },  
+  { search:"HBSOLAR STANDING SEAM CLAMP WITH ONE TOP HOLE, 2 SIDE HOLES", office:"HB-98121-02" },
+  { search:"T3-2-6.5 x 100mm Hex Screws for AG Bracket", office:"T3-2-6.5 x 100mm Hex Screws for AG Bracket" },
+  { search:"RT MINI NUT", office:"RT MINI NUT" },
+  { search:"RTMINI FLANGE", office:"RTMINI FLANGE" },
+  { search:"MERSEN PV FUSE MIDGET 15A", office:"FUSE-MER-PV-15A" },
+  { search:"MERSEN FUSE HOLDER USM-1", office:"MER-FUSE HOLDER - USM1" },
+  { search:"STANDARD SAFETY BOLLARD, FIXED, 4.5 X 36\"\"", office:"BOLLARD-STD" },
+  { search:"HEAVY DUTY SAFETY BOLLARD, FIXED, - 5.5 X 48\"\"", office:"BOLLARD-HVY" },
+  { search:"HEAVY DUTY BOLLARD SLEEVE - 6 X 56\"\", COLOURED, SMOOTH", office:"BOLLARD-HVY-SLEEVE" },
+  { search:"SMOOTH BOLLARD SLEEVE, WHITE, 5' X 52\"\"", office:"BOLLARD-STD-SLEEVE-W" },
+  { search:"SAVANT POWER DIRECTOR", office:"SAV-HST-DIRECTOR-00" },
+  { search:"SAVANT POWER DIRECTOR LITE ONE BLE RADIO", office:"SAV-HST-DIRECTORLITE-00" },
+  { search:"SAVANT Savant Power System Monitor", office:"SAV-SEM-2015-00" },
+  { search:"SAVANT CURRENT TRACK SENSOR, 250A", office:"SAV-SEM-250A2-00" },
+  { search:"SAVANT CURRENT TRACK SENSOR, 150A", office:"SAV-SEM-150A2-00" },
+  { search:"SMARTENERGY SENSOR 50A (5 PACK)", office:"SAV-SEM-050A5-00" },
+  { search:"SMARTENERGY SENSOR 20A (5 PACK)", office:"SAV-SEM-020A5-00" },
+  { search:"Savant Power System Voltage Sensor", office:"SAV-SEM-VT01-00" },
+  { search:"SAVANT QO SINGLE 60A POWER MODULE, PON", office:"SAV-GPM-QP1R60240-21" },
+  { search:"SAVANT QO SINGLE 30A POWER MODULE, PON", office:"SAV-GPM-QP1R30240-21" },
+  { search:"SAVANT QO DUAL 20A POWER MODULE, PON", office:"SAV-GPM-QP2R20120-21" },
+  { search:"QO SINGLE 60A POWER MODULE, PIGTAIL, 2P", office:"SAV-GPM-Q1R60240-21" },
+  { search:"QO SINGLE 30A POWER MODULE, PIGTAIL, 2P", office:"SAV-GPM-Q1R30240-21" },
+  { search:"QO DUAL 20A POWER MODULE, PIGTAIL, 1P", office:"SAV-GPM-Q2R20120-21" },
+  { search:"SAVANT 1-INCH SINGLE 60A POWER MODULE, PIGTAIL", office:"SAV-GPM-H1R60240-21" },
+  { search:"SAVANT 1-INCH SINGLE 30A POWER MODULE, PIGTAIL", office:"SAV-GPM-H1R30240-21" },
+  { search:"SAVANT 1-INCH DUAL 20A POWER MODULE, PIGTAIL", office:"SAV-GPM-H2R20120-21" },
+  { search:"SAVANT 1-INCH CURRENT TRACK MODULE, PIGTAIL", office:"SAV-GPM-H2SEM-00" },
+  { search:"SAVANT QO CURRENT TRACK MODULE, PIGTAIL", office:"SAV-GPM-Q2SEM-00" },
+  { search:"SAVANT PANEL BRIDGE CONTROLLER - POE", office:"SAV-PBC-P1000-00" },
+  { search:"SAVANT POWER DIRECTOR", office:"SAV-HST-DIRECTOR-00" },
+  { search:"SAVANT POWER DIRECTOR LITE ONE BLE RADIO", office:"SAV-HST-DIRECTORLITE-00" },
+  { search:"SAVANT Savant Power System Monitor", office:"SAV-SEM-2015-00" },
+  { search:"SAVANT CURRENT TRACK SENSOR, 250A", office:"SAV-SEM-250A2-00" },
+  { search:"SAVANT CURRENT TRACK SENSOR, 150A", office:"SAV-SEM-150A2-00" },
+  { search:"SMARTENERGY SENSOR 50A (5 PACK)", office:"SAV-SEM-050A5-00" },   
+  { search:"STANDARD SAFETY BOLLARD - 4.5 X 36\"", office:"BOLLARD" },
+  { search:"EATON BREAKERS", office:"EATON-BR" },
+  { search:"SIEMENS BREAKERS", office:"SIE-Q" },
+  { search:"SQUARE D BREAKERS", office:"SQRD-Q0" },
+  { search:"FPE BREAKERS", office:"BR-FPE-" },
+  { search:"SCHNEIDER BREAKERS", office:"SCH-BR CHOM" },
+  { search:"EATON METERBASE", office:"EATON-LM2" },
+  { search:"LEVITON BREAKERS", office:"LEV-LB" },
+  { search:"EATON 3R SWITCHES", office:"CDG___NRB" },
+  { search:"EATON NEMA 1 SWITCHES", office:"CDG___NGB" },
+  { search:"1/2IN BOX CONNECTOR BX", office:"BX-05" },
+  { search:"3/4\" BOX CONN BX", office:"BX-07" },
+  { search:"1\" BOX CONN BX", office:"BX-10" },
+  { search:"BX CONNECTOR - 90 DEG CONN, 1/2 INCH", office:"BX90-05" },
+  { search:"BX CONNECTOR-STRAIGHT 1/1/4\"", office:"BX-12" },
+  { search:"BX CONNECTOR - 90 DEG CONN, 3/4 INCH", office:"BX90-07" },
+  { search:"BX CONNECTOR - 90 DEG CONN, 1 INCH", office:"BX90-10" },
+  { search:"BX CONNECTOR - 90 DEG CONN, 1-1/4 INCH", office:"BX90-12" },
+  { search:"BX CONNECTOR - 90 DEG CONN, 2 INCH", office:"BX90-20" },
+  { search:"3/8\" AC90 DUPLEX CONN", office:"BXDUP-03" },
+  { search:"4PR 24CAT 5E PLENUM FT6 BLUE 305m", office:"24CAT5E" },
+  { search:"CAT 5E OUTDOOR BLACK", office:"CAT 5E-OUTDOOR" },
+  { search:"1/2IN BOX CONNECTOR BX", office:"BX-05" },
+  { search:"3/4IN BOX CONNECT BX", office:"BX-07" },
+  { search:"1IN BOX CONNECT BX", office:"BX-10" },
+  { search:"TWO-SCREW CABLE CONNECTOR, LOOMEX, SIZE 3/4 IN, ZINC ALLOY", office:"TWO-SCREW CABLE CONNECTOR" },
+  { search:"TECK CONNECTOR 1/2", office:"TEKCON-05" },
+  { search:"TECK CONNECTOR 3/4\"", office:"TEKCON-07" },
+  { search:"TECK CONNECTOR 1\"", office:"TEKCON-100" },
+  { search:"WIRE 1AWG-3C AL ACWU90", office:"W-1/3C-ACWU90" },
+  { search:"WIRE 2AWG-3C AL ACWU90", office:"W-2/3C-ACWU90" },
+  { search:"3C6 CU TECK CABLE 1KV", office:"W-6/3C TECK" },
+  { search:"3C8 CU TECK CABLE 1KV", office:"W-8/3C TECK" },
+  { search:"WIRE 6-1C 7STR RW90 90C GREEN", office:"W-6/1C-RW90 GRN" },
+  { search:"4C10 CU TECK CABLE 1K", office:"W-10/4C TECK" },
+  { search:"WIRE 6AWG-1C BARE COPPER SOFT", office:"W-6/1C-BARECU" },
+  { search:"WIRE T90 6 AWG-1C STRANDED-WHITE", office:"W-T90-6STR-W" },
+  { search:"WIRE T90 6AWG-1C STRANDED - BLACK", office:"W-T90-6STR-B" },
+  { search:"WIRE T90 6 AWG-1C STRANDED -RED", office:"W-T90-6STR-R" },
+  { search:"WIRE T90 6 AWG-1C STRANDED-GREEN", office:"W-T90-6STR-G" },
+  { search:"WIRE 14-3C NMD90 ROMEX", office:"W-NMD90-75M-14/3C" },
+  { search:"WIRE 6-3C NMD90 ROMEX", office:"W-NMD90-6/3C" },
+  { search:"WIRE 8-3C NMD90 ROMEX", office:"W-NMD90-8/3" },
+  { search:"WIRE NMD90 10-3C ROMEX ORANGE", office:"W-NMD90-10/3-OR" },
+  { search:"WIRE 14-2C NMD90 ROMEX", office:"W-NMD90-75M-14/2C" },
+  { search:"WIRE NMD90 12-2C ROMEX YELLOW 75M", office:"W-NMD90-12/2-YEL" },
+  { search:"WIRE 4/0 AUL RW90 WHITE", office:"W-4/0-RW90A-WHT" },
+  { search:"WIRE 4/0 AUL RW90 BLACK", office:"W-4/0-RW90A-BLK" },
+    { search:"JUNCTION BOX 1-7/8 in. Deep, 16.5 Cu. In.", office:"JB-" },
+  { search:"JUNCTION BOX PVC 4X4X2", office:"JB-4X4X2" },
+  { search:"JUNCTION BOX PVC 5X5X2", office:"JB-5X5X2" },
+  { search:"NEMA 1 - METAL JB 6X6X4", office:"JB-1100 DF060604" },
+  { search:"JUNCTION BOX 6X6X4 PVC", office:"JB-6X6X4" },
+  { search:"JUNCTION BOX PVC 8X8X4", office:"JB-8X8X4 PVC" },
+  { search:"NEMA 1 - METAL JB 8X8X4", office:"JB-1100 DF080804 - CSK0884" },
+  { search:"NEMA 1 - METAL JB 12X12X4", office:"JB-1100 DF121204" },
+  { search:"JUNCTION BOX 4-11/16\", SHALLOW", office:"JB-72151-K" },
+  { search:"NEMA 1 - METAL JB HINGED DOOR 8X8X4", office:"JB-1100-E080804" },
+  { search:"JUNCTION BOX 4-11/16\", DEEP", office:"JB-72171K" },
+  { search:"JB 4x4 SQUARE BOX 2-1/8\" DEEP", office:"JB-52171-K" },
+  { search:"NEMA 1 - METAL JB HINGED DOOR 12X12X6", office:"JB-1100EF121206" },
+  { search:"JB 4-11/16 INCH SQUARE BLANK COVER", office:"JB-SS-COVER 72C1" },
+  { search:"1\" RIGID PVC CONDUIT (PER FOOT)", office:"PVC-10" },
+  { search:"1\" PVC EXPANSION JOINT", office:"PVC-EJ10" },
+  { search:"1' PVC FEMALE ADAPTER", office:"PVC-FA10" },
+  { search:"1 INCH PVC TERMINAL ADAPTOR", office:"PVC-TA10" },
+  { search:"1\" PVC LL FITTING", office:"PVC-LL10" },
+  { search:"1\" PVC LR FITTING", office:"PVC-LR10" },
+  { search:"1\" PVC LB FITTING", office:"PVC-LB10" },
+  { search:"1\" PVC T FITTING", office:"PVC-T10" },
+  { search:"1\" PVC PIPE STRAP", office:"PVC-PS10" },
+  { search:"THRD STRAIN RELIEF PVC 3/4\" HUB", office:"PVC-TSRC15" },
+  { search:"THRD STRAIN RELIEF PVC 1/2\" HUB", office:"PVC-TSRC10" },
+  { search:"4\" BOX 14/50 COVER", office:"JB-8366" },
+  { search:"10-1C 19STR BC RPVU90 2KV BLACK", office:"W-10/1C-RPVU90B" },
+  { search:"14/50 FLUSH 50A 125/250 OUTLET", office:"REC-RANGE-279-S00" },
+  { search:"FEMALE MC4", office:"MC4-F" },
+  { search:"10-1C 19STR BC RPVU90 2 KV RED", office:"W-10/1C-RPVU90R" },
+  { search:"MALE MC4", office:"MC4-M" },
+  { search:"SOLAREDGE 1 PH, 240V ELEC. METER", office:"SE-MTR240" },
+  { search:"SOLAREDGE 10KW HD WAVE INV", office:"SE-10000H-US" },
+  { search:"SOLAREDGE 225A CT (count as 2)", office:"SE-CT-225A-T-20" },
+  { search:"SAVANT POWER DIRECTOR LITE ONE BLE RADIO", office:"SAV-HST-DIRECTORLITE-00" },
+  { search:"QO DUAL 20A POWER MODULE", office:"SAV-GPM-QP2R20120-21" },
+  { search:"QO SINGLE 30A POWER MODULE", office:"SAV-GPM-QP1R30240-21" },
+  { search:"QO SINGLE 60A POWER MODULE", office:"SAV-GPM-QP1R60240-21" },
+  { search:"SENSE PRO ENERGY (NO SOLAR)", office:"SENSE ENERGY-MON" },
+  { search:"Nesco ACD-2 - AC DISCONECT", office:"Nesco ACD-2" },
+  { search:"Siemens 60a non fused disconnect", office:"LNFC 222R" },
+  { search:"EATON AC ISO SWITCH 3GAC222NF", office:"EATON AC ISO SWITCH 3GAC222NF" },
+  { search:"Ground Bushing 1/2", office:"GNZ-105" },
+  { search:"Ground Bushing 3/4", office:"GBZ-107" },
+  { search:"EATON 125A 4 Space Sub panel", office:"CCPL104" },
+  { search:"EATON 125A 8 Space Sub panel", office:"CCPL108" },
+  { search:"Ground Bushing 1\"", office:"GNZ-110" },
+  { search:"EATON FUSED DISCONNECT 60A", office:"CDG222NRB" },
+  { search:"EATON FUSED DISCONNECT 100A", office:"CDG223NRB" },
+  { search:"EATON FUSED DISCONNECT 200A", office:"CDG224NRK" },
+  { search:"PUSH BUTTON ASSEMBLY", office:"32W274" },
+  { search:"Eaton 60A AC Isolation Switch", office:"Dpb222r" },
+  { search:"16-4C Grey Cable", office:"42AA1604U" },
+  { search:"Dome Connector 1/2\" NPT - Cat 5 Strain Relief", office:"RD13NA" }
+  ]
+  .filter(p=>p.search.toLowerCase().includes(q)).forEach(p=>{
+    const div=document.createElement("div");
+    div.textContent=`${p.search} → ${p.office}`;
+    div.onclick=()=>{addPart(p.office); res.innerHTML="";};
+    res.appendChild(div);
+  });
+}
+function addPart(part){
+  const qty=prompt("Enter quantity for "+part,1); if(!qty) return;
+  currentJob.parts.push({part:part,qty:qty}); saveJobs(); renderParts();
+}
+function addCustomPart(){
+  const name=prompt("Enter custom part name"); if(!name) return;
+  const qty=prompt("Enter quantity for "+name,1); if(!qty) return;
+  currentJob.parts.push({part:name,qty:qty}); saveJobs(); renderParts();
+}
+function renderParts(){
+  const pt=document.getElementById("partsTable"); pt.innerHTML="";
+  (currentJob.parts||[]).forEach((p,i)=>{
+    const row=document.createElement("tr");
+    row.innerHTML=`<td>${p.part}</td>
+      <td><input type="number" min="1" value="${p.qty}" onchange="updatePartQty(${i},this.value)"></td>
+      <td><button onclick="removePart(${i})">X</button></td>`;
+    pt.appendChild(row);
+  });
+}
+function updatePartQty(i,val){ currentJob.parts[i].qty=val; saveJobs(); }
+function removePart(idx){ currentJob.parts.splice(idx,1); saveJobs(); renderParts(); }
+
+// Photo setup with delete
+function setupPhotoInput(inputId, photoArray, previewContainerId) {
+  const input=document.getElementById(inputId);
+  const preview=document.getElementById(previewContainerId);
+  function renderPreview(){
+    preview.innerHTML="";
+    photoArray.forEach((img,idx)=>{
+      const imgEl=document.createElement("img");
+      imgEl.src=img; imgEl.className="preview"; imgEl.title="Click to remove";
+      imgEl.onclick=()=>{ if(confirm("Remove this photo?")){ photoArray.splice(idx,1); saveJobs(); renderPreview(); } };
+      preview.appendChild(imgEl);
+    });
+  }
+  if(!input.dataset.bound){
+    input.onchange=async(e)=>{
+      const files=[...e.target.files];
+      for(const f of files){
+        const dataUrl=await new Promise(res=>{const reader=new FileReader(); reader.onload=ev=>res(ev.target.result); reader.readAsDataURL(f);});
+        photoArray.push(dataUrl);
+      }
+      saveJobs(); renderPreview();
+    };
+    input.dataset.bound="true";
+  }
+  renderPreview();
+}
+
+// Save
+document.getElementById("saveJobBtn").onclick=()=>{
+  currentJob.title=document.getElementById("jobTitle").value;
+  currentJob.date=document.getElementById("jobDate").value;
+  currentJob.projectType=document.getElementById("projectType").value;
+  currentJob.shopDepart=document.getElementById("shopDepart").value;
+  currentJob.arrivalTime=document.getElementById("arrivalTime").value;
+  currentJob.workCompleted=document.getElementById("workCompleted").value;
+  currentJob.inverter.make=document.getElementById("inverterMake").value;
+  currentJob.inverter.model=document.getElementById("inverterModel").value;
+  currentJob.inverter.serial=document.getElementById("inverterSerial").value;
+  currentJob.battery.make=document.getElementById("batteryMake").value;
+  currentJob.battery.model=document.getElementById("batteryModel").value;
+  currentJob.battery.serial=document.getElementById("batterySerial").value;
+  currentJob.clientNotes=document.getElementById("clientNotes").value;
+  currentJob.remainingWork=document.getElementById("remainingWork").value;
+  currentJob.materialsNeeded=document.getElementById("materialsNeeded").value;
+  currentJob.leftSite=document.getElementById("leftSite").value;
+  currentJob.arrivedShop=document.getElementById("arrivedShop").value;
+  saveJobs(); alert("Saved");
+};
+document.getElementById("backListBtn").onclick=backToList;
+document.getElementById("newJobBtn").onclick=newJob;
+
+// Export PDF
+document.getElementById("exportPDFBtn").onclick=()=>{
+  document.getElementById("saveJobBtn").click();
+  const {jsPDF}=window.jspdf; const doc=new jsPDF();
+  const blue=[11,105,255],orange=[255,106,0];
+  doc.setFillColor(...blue); doc.rect(0,0,210,20,"F");
+  doc.setTextColor(255,255,255); doc.setFontSize(16);
+  doc.text(currentJob.title||"Job Report",10,13);
+  let y=30; doc.setTextColor(0,0,0); doc.setFontSize(12);
+  doc.text(`Date: ${currentJob.date}`,10,y); y+=8;
+  doc.text(`Team: ${(currentJob.team||[]).join(", ")}`,10,y); y+=8;
+  doc.text(`Project Type: ${currentJob.projectType}`,10,y); y+=8;
+  doc.text(`Shop Depart: ${currentJob.shopDepart}`,10,y); y+=8;
+  doc.text(`Arrival Time: ${currentJob.arrivalTime}`,10,y); y+=8;
+  doc.text(`Left Site: ${currentJob.leftSite}`,10,y); y+=8;
+  doc.text(`Arrived Shop: ${currentJob.arrivedShop}`,10,y); y+=10;
+  function section(title){doc.setTextColor(...orange);doc.setFontSize(14);doc.text(title,10,y);y+=8;doc.setTextColor(0,0,0);doc.setFontSize(12);}
+  function renderPhotosGrid(images){ if(!images||!images.length)return; let perRow=Math.min(4,Math.ceil(Math.sqrt(images.length))); const gap=5; const imgWidth=(180-(perRow-1)*gap)/perRow; const imgHeight=imgWidth*0.75; let x=10,rowCount=0; images.forEach((img)=>{const type=img.startsWith("data:image/png")?"PNG":"JPEG"; if(y+imgHeight>280){doc.addPage();y=20;} doc.addImage(img,type,x,y,imgWidth,imgHeight); x+=imgWidth+gap; rowCount++; if(rowCount>=perRow){x=10;y+=imgHeight+gap;rowCount=0;}}); if(rowCount>0)y+=imgHeight+gap; }
+  section("Work Completed"); doc.text(currentJob.workCompleted||"",10,y,{maxWidth:180}); y+=16;
+  section("Inverter"); doc.text(`Make: ${currentJob.inverter.make}`,10,y); y+=8; doc.text(`Model: ${currentJob.inverter.model}`,10,y); y+=8; doc.text(`Serial: ${currentJob.inverter.serial}`,10,y); y+=8; renderPhotosGrid(currentJob.inverter.photos);
+  section("Battery"); doc.text(`Make: ${currentJob.battery.make}`,10,y); y+=8; doc.text(`Model: ${currentJob.battery.model}`,10,y); y+=8; doc.text(`Serial: ${currentJob.battery.serial}`,10,y); y+=8; renderPhotosGrid(currentJob.battery.photos);
+  section("Parts Used"); (currentJob.parts||[]).forEach(p=>{doc.text(`${p.part}   Qty: ${p.qty}`,12,y); y+=8; if(y>260){doc.addPage(); y=20;}});
+  section("Work Photos"); renderPhotosGrid(currentJob.workPhotos);
+  section("Client Notes"); doc.text(currentJob.clientNotes||"",10,y,{maxWidth:180}); y+=16;
+  section("Remaining Work"); doc.text(currentJob.remainingWork||"",10,y,{maxWidth:180}); y+=16;
+  section("Materials Needed"); doc.text(currentJob.materialsNeeded||"",10,y,{maxWidth:180}); y+=16;
+  doc.save(`job_${currentJob.title||Date.now()}.pdf`);
+};
+renderJobs();
+</script>
+</body>
+</html>
