@@ -23,6 +23,13 @@
   img.preview{max-width:120px; margin:4px; border:1px solid #ccc; border-radius:6px}
   table{border-collapse:collapse; width:100%; margin-top:6px;}
   th,td{border:1px solid #ccc; padding:4px;}
+  textarea {
+width: 98%;
+min-height: 120px;
+resize: vertical;
+font-size: 16px;
+padding: 8px;
+}
   h3{color:#0b69ff; border-bottom:2px solid #ff6a00; padding-bottom:4px;}
 </style>
 </head>
@@ -188,10 +195,13 @@ function renderTechs(){
     c.appendChild(cb); c.appendChild(lab); c.appendChild(document.createElement("br"));
   });
 }
-
+function normalize(str) {
+  return str.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
 // Parts
 function filterParts(){
-  const q=document.getElementById("partSearch").value.toLowerCase();
+  const q=normalize(document.getElementById("partSearch").value.toLowerCase());
+  
   const res=document.getElementById("partResults"); res.innerHTML="";
   if(!q) return;
   [{search:"6/3 nmd",office:"W-NMD90-6/3C"},{search:"1 inch teck connector",office:"TEKCON-100"},{search:"HB SKYRAIL3 FLUSH MOUNT- 5.945M LONG EXTRUSION FOR CLICLOC CLAMP", office:"HB-8395-5945"},
@@ -437,12 +447,107 @@ function filterParts(){
   { search:"PUSH BUTTON ASSEMBLY", office:"32W274" },
   { search:"Eaton 60A AC Isolation Switch", office:"Dpb222r" },
   { search:"16-4C Grey Cable", office:"42AA1604U" },
-  { search:"Dome Connector 1/2\" NPT - Cat 5 Strain Relief", office:"RD13NA" }
+  { search:"Dome Connector 1/2\" NPT - Cat 5 Strain Relief", office:"RD13NA" },
+   { search: "FLASHED WEATHERPROOF ROOF ENTRY BOX", office: "ROOF-ENTRY" },
+  { search: "JUNCTION BOX 5X5X2 PVC", office: "JB-5X5X2" },
+  { search: "JUNCTION BOX 8IN X 8IN X 4IN - 3R", office: "JB-PVC-8X8X4" },
+  { search: "NEMA 1 - METAL JUNCTION BOX SCREW COVER 8X8X4", office: "JB-CSK0884" },
+  { search: "NEMA 1 - METAL JUNCTION BOX SCREW COVER 12X12X4", office: "JB-1100-DF080804" },
+  { search: "MULTI CONTACT MC4 PV-KBT4 FEMALE", office: "MC4-PV-FE" },
+  { search: "MULTI CONTACT MC4 PV-KBT4 MALE", office: "MC4-PV-MA" },
+  { search: "TOUCH SAFE FUSE HOLDER - SINGLE POLE", office: "FUSE-TS-HOLDER-1P" },
+  { search: "FUSE 15A", office: "FUSE-PV-15A" },
+  { search: "FUSE 20A", office: "FUSE-PV-20A" },
+  { search: "TECK CONNECTOR 3/4\", ALUMINIUM, WATERTIGHT", office: "TECKCON-07" },
+  { search: "TECK CONNECTOR 1/2\" , ALUMINUM, WATERTIGHT", office: "TEKCON-05" },
+  { search: "3/4\" ZINC GROUND BUSHING INSUL", office: "GBZ-107" },
+  { search: "1/2\" ZINC GROUND BUSHING INSUL", office: "GBZ-105" },
+  { search: "ALUMINIUM LAY IN LUG 14-4 SLT SCR", office: "LUG-LL14-4" },
+  { search: "NON-METALLIC LIQUIDTITE CONDUIT 1\" (per foot)", office: "NMLT-10" },
+  { search: "NON-METALLIC LIQUIDTITE TERMINAL ADAPTER STRAIGHT 1\"", office: "NMLT-TA-10" },
+  { search: "PV WIRE, 10AWG-1C, COPPER - RED (per metre)", office: "W-10-1C-RPVU90-R" },
+  { search: "PV WIRE, 10AWG-1C, COPPER - BLACK (per metre)", office: "W-10-1C-RPVU90-B" },
+  { search: "BOND WIRE, 6AWG-1C, COPPER, BARE (per metre)", office: "W-6-1C-BARE-CU" },
+  { search: "TECK CABLE 10AWG-2C COPPER, 1000V", office: "W-10-2C-TECK" },
+  { search: "TECK CABLE 10AWG-4C COPPER, 1000V", office: "W-10-4C-TECK" },
+  { search: "TECK CABLE 10AWG-6C COPPER, 1000V", office: "W-10-6C-TECK" },
+  { search: "TECK CABLE 10AWG-8C COPPER, 1000V", office: "W-10-8C-TECK" },
+  { search: "KINETIC RACKING CRITTER GUARD 6\"", office: "KIN-KHSG6-M" },
+  { search: "KINETIC RACKING CRITTER GUARD 8\"", office: "KIN-KHSG8-M" },
+  { search: "KINETIC SOLAR J-HOOKS BOX 100", office: "KIN-KHSG-J" },
+  { search: "SOLATRIM GEN 2 SQUIRREL GUARD, 100 FT, 25 X 5.5\"X 48\"", office: "ST-055" },
+  { search: "DISCONNECT SVC ENTRANCE RATED, FUSED, 3R SWTICH - 200A", office: "EATON-SVC-200" },
+  { search: "DISCONNECT SVC ENTRANCE RATED, FUSED, 3R SWITCH - 100A", office: "EATON-SVC-100" },
+  { search: "DISCONNECT SVC ENTRANCE RATED, FUSED, 3R SWITCH - 60A", office: "EATON-SVC-60" },
+  { search: "EATON 200A ENCLOSED SERVICE ENTRANCE BREAKER - 3R", office: "EATON-ECCSEGEN20R" },
+  { search: "EATON DOUBLE POLE, DOUBLE THROW SWTICH - 100A", office: "EATON-SW-DPDT-100" },
+  { search: "EATON DOUBLE POLE, DOUBLE THROW SWTICH - 60A", office: "EATON-SW-DPDT-60" },
+  { search: "SIEMENS GENERAL DUTY SWITCH 60A, 2-POLE, 3R OUTDOOR", office: "SIE-LNF222R" },
+  { search: "EATON 60A DISCONNECT, NEMA 3R, NON-SERVICE ENTRANCE RATED", office: "EATON-DPB222R" },
+  { search: "EMERGENCY STOP BUTTON FOR RAPID SHUTDOWN", office: "E-STOP" },
+  { search: "IMO 1-STRING DC DISCONNECT WITH SAFE LOCK, 4P 32A 600V, IMO-2104", office: "IMO-SI32-PEL64R-2" },
+  { search: "IMO 2-STRING DC DISCONNECT WITH SAFE LOCK, 4P 32A 600V, IMO-2106", office: "IMO-SI32-PEL64R-4" },
+  { search: "IMO 3-STRING DC DISCONNECT WITH SAFE LOCK, 4P 32A 600V, IMO-2107", office: "IMO-SI32-PEL64R-6" },
+  { search: "IMO 4-STRING DC DISCONNECT WITH SAFE LOCK, 8P 48A 600V, IMO-2108", office: "IMO-SI40-PEL64R-8" },
+  { search: "FUSE, FAST ACTING - 200A", office: "FUSE-200A" },
+  { search: "FUSE, FAST ACTING - 100A", office: "FUSE-100A" },
+  { search: "FUSE, FAST ACTING - 60A", office: "FUSE-60A" },
+  { search: "FUSE, FAST ACTING - 50A", office: "FUSE-50A" },
+  { search: "FUSE, FAST ACTING - 40A", office: "FUSE-40A" },
+  { search: "FUSE, FAST ACTING - 30A", office: "FUSE-30A" },
+  { search: "FUSE, FAST ACTING - 20A", office: "FUSE-20A" },
+  { search: "EATON BR STYLE LOAD CENTRE, 200A W/ 200A MAIN BRKR", office: "EATON-BR-200A" },
+  { search: "EATON BR STYLE LOAD CENTRE, 100A W/ 100A MAIN BRKR", office: "EATON-BR-100A" },
+  { search: "SCHNEIDER HOMELINE STYLE LOAD CENTRE, 225A W/200A MAIN BRKR", office: "SCH-HL-200A" },
+  { search: "SCHNEIDER SQUARE D, QO STYLE LOAD CENTRE, 225A W/200A MAIN BRKR", office: "SCH-SQRD-200A" },
+  { search: "SCHNEIDER HOMELINE LOAD CENTRE, 100A, 60 SPACE W/ 100A MB", office: "SCH-HL-100A-60C" },
+  { search: "SCHNEIDER HOMELINE LOAD CENTRE, 100A, 24 SPACE W/ 100A MB", office: "SCH-HL-100A-24C" },
+  { search: "SIEMENS LOAD CENTRE, 200A , 24 SPACE W/200A MB", office: "SIE-200A-24C" },
+  { search: "LEVITON PANEL, 225A LOAD CENTRE 30 SPACE, W/ 100A MB", office: "LEV-100A-30" },
+  { search: "SCHNEIDER CHOM BREAKER, 15A, 120V SINGLE-POLE", office: "SCH-BR-CHOM-115" },
+  { search: "SCHNEIDER CHOM BREAKER, 20A, 120V SINGLE-POLE", office: "SCH-BR-CHOM-120" },
+  { search: "SCHNEIDER CHOM BREAKER, 30A, 120V SINGLE-POLE", office: "SCH-BR-CHOM-130" },
+  { search: "SCHNEIDER CHOM BREAKER, 15A, 240V DOUBLE-POLE", office: "SCH-BR-CHOM-215" },
+  { search: "SCHNEIDER CHOM BREAKER, 20A, 240V DOUBLE-POLE", office: "SCH-BR-CHOM-220" },
+  { search: "SCHNEIDER CHOM BREAKER, 30A, 240V DOUBLE-POLE", office: "SCH-BR-CHOM-230" },
+  { search: "SCHNEIDER CHOM BREAKER, 40A, 240V DOUBLE-POLE", office: "SCH-BR-CHOM-240" },
+  { search: "SCHNEIDER CHOM BREAKER, 50A, 240V DOUBLE-POLE", office: "SCH-BR-CHOM-250" },
+  { search: "SCHNEIDER CHOM BREAKER, 60A, 240V DOUBLE-POLE", office: "SCH-BR-CHOM-260" },
+  { search: "SCHNEIDER CHOM BREAKER, 100A, 240V DOUBLE-POLE", office: "SCH-BR-CHOM-2100" },
+  { search: "HOMELINE TANDEM BREAKER, 2 X 115A", office: "SCH-BR-CHOM-T1515" },
+  { search: "SCHNEIDER CHOM QUAD BREAKER, 2 X 115A & 1 X 215A", office: "SCH-BR CHOM 1515215" },
+  { search: "SCHNEIDER CHOM QUAD BREAKER, 2 X 115A & 1 X 220A", office: "SCH-BR CHOM 1515220" },
+  { search: "SCHNEIDER CHOM QUAD BREAKER, 2 X 115A & 1 X 230A", office: "SCH-BR-CHOM-1515230" },
+  { search: "SIEMENS 15A BREAKER, 240V DOUBLE-POLE", office: "SIE-BR-Q215" },
+  { search: "SIEMENS 20A BREAKER, 240V DOUBLE-POLE", office: "SIE-BR-Q220" },
+  { search: "SIEMENS 30A BREAKER, 240V DOUBLE-POLE", office: "SIE-BR-Q230" },
+  { search: "SIEMENS 40A BREAKER, 240V DOUBLE-POLE", office: "SIE-BR-Q240" },
+  { search: "SIEMENS 50A BREAKER, 240V DOUBLE-POLE", office: "SIE-BR-Q250" },
+  { search: "SIEMENS 60A BREAKER, 240V DOUBLE-POLE", office: "SIE-BR-Q260" },
+  { search: "SIEMENS 15A ARC FAULT COMB BREAKER", office: "SIE-BR-QA115A-AFCI" },
+  { search: "SIEMANS QUAD BREAKER, 2 X 115A + 1 X 215A", office: "SIE-BR-Q21515" },
+  { search: "SIEMANS QUAD BREAKER, 2 X 115A + 1 X 220A", office: "SIE-BR-Q21520" },
+  { search: "SIEMENS BREAKER QUAD, 2 X 115A + 1 X 230A", office: "SIE-BR-Q21530" },
+  { search: "EATON 15A BREAKER, 240V, DOUBLE-POLE", office: "EATON-BR-215" },
+  { search: "EATON 20A BREAKER, 240V, DOUBLE-POLE", office: "EATON-BR-220" },
+  { search: "EATON 50A BREAKER, 240V, DOUBLE-POLE", office: "EATON-BR-250" },
+  { search: "EATON 60A BREAKER, 240V, DOUBLE-POLE", office: "EATON-BR-260" },
+  { search: "EATON 100A BREAKER, 240V, DOUBLE-POLE", office: "EATON-BR-2100" },
+  { search: "FPE 15A BREAKER, 240V, DOUBLE-POLE", office: "BR-FPE-215" },
+  { search: "FPE 20A BREAKER, 240V, DOUBLE-POLE", office: "BR-FPE-220" },
+  { search: "FPE 30A BREAKER, 240V, DOUBLE-POLE", office: "BR-FPE-230" }
   ]
-  .filter(p=>p.search.toLowerCase().includes(q)).forEach(p=>{
-    const div=document.createElement("div");
-    div.textContent=`${p.search} → ${p.office}`;
-    div.onclick=()=>{addPart(p.office); res.innerHTML="";};
+  .filter(p =>
+    normalize(p.search).includes(q) ||
+    normalize(p.office).includes(q)
+  )
+  .forEach(p => {
+    const div = document.createElement("div");
+    div.textContent = `${p.office}`;
+    div.onclick = () => {
+      addPart(p.office);
+      res.innerHTML = "";
+    };
     res.appendChild(div);
   });
 }
