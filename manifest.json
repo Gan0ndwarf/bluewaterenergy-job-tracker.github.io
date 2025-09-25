@@ -1,7 +1,7 @@
 {
   "name": "Bluewater Job Tracker",
   "short_name": "Job Tracker",
-  "start_url": "./offlineformversion1.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0b69ff",
   "theme_color": "#0b69ff",
@@ -18,3 +18,4 @@
     }
   ]
 }
+
