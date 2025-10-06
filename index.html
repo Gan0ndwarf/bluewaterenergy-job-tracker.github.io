@@ -266,7 +266,7 @@ function filterParts(){
   const res=document.getElementById("partResults"); res.innerHTML="";
   if(!q) return;
   [{search:"6/3 nmd",office:"W-NMD90-6/3C"},{search:"1 inch teck connector",office:"TEKCON-100"},{search:"HB SKYRAIL3 FLUSH MOUNT- 5.945M LONG EXTRUSION FOR CLICLOC CLAMP", office:"HB-8395-5945"},
-    {search:"FLUSH MOUNT SPLICE BAR FOR SKYRAIL3 WITH BONDING WASHER", office:"HB-1946"},
+   {search:"FLUSH MOUNT SPLICE BAR FOR SKYRAIL3 WITH BONDING WASHER", office:"HB-1946"},
   { search:"HB FLASHGUARD FLASHING KIT - MILL FINISH", office:"HB-99103" },
   { search:"HBSOLAR STANDING SEAM CLAMP WITH ONE TOP HOLE, 2 SIDE HOLES", office:"HB-98121-02" },
   { search:"HBSOLAR MB2 MIRACLE CONNECTING BRACKET KIT (4.7MM THICK)", office:"HB-92873" },
@@ -587,8 +587,26 @@ function filterParts(){
   { search: "3/4\" ZINC GROUND BUSHING INSUL", office: "GBZ-107" },
   { search: "1/2\" ZINC GROUND BUSHING INSUL", office: "GBZ-105" },
   { search: "ALUMINIUM LAY IN LUG 14-4 SLT SCR", office: "LUG-LL14-4" },
-  { search: "NON-METALLIC LIQUIDTITE CONDUIT 1\" (per foot)", office: "NMLT-10" },
-  { search: "NON-METALLIC LIQUIDTITE TERMINAL ADAPTER STRAIGHT 1\"", office: "NMLT-TA-10" },
+ // ===================== NMLT CONDUIT 1/2", 3/4", 1", 2" =====================
+
+// Per foot conduit
+{ search: "NON-METALLIC LIQUIDTITE CONDUIT 1/2\" (per foot), 1/2 inch NMLT", office: "NMLT-05" },
+{ search: "NON-METALLIC LIQUIDTITE CONDUIT 3/4\" (per foot), 3/4 inch NMLT", office: "NMLT-07" },
+{ search: "NON-METALLIC LIQUIDTITE CONDUIT 1\" (per foot), 1 inch NMLT", office: "NMLT-10" },
+{ search: "NON-METALLIC LIQUIDTITE CONDUIT 2\" (per foot), 2 inch NMLT", office: "NMLT-20" },
+
+// Terminal adapters
+{ search: "NON-METALLIC LIQUIDTITE TERMINAL ADAPTER STRAIGHT 1/2\", 1/2 inch NMLT", office: "NMLT-TA-05" },
+{ search: "NON-METALLIC LIQUIDTITE TERMINAL ADAPTER STRAIGHT 3/4\", 3/4 inch NMLT", office: "NMLT-TA-07" },
+{ search: "NON-METALLIC LIQUIDTITE TERMINAL ADAPTER STRAIGHT 1\", 1 inch NMLT", office: "NMLT-TA-10" },
+{ search: "NON-METALLIC LIQUIDTITE TERMINAL ADAPTER STRAIGHT 2\", 2 inch NMLT", office: "NMLT-TA-20" },
+
+// 90 degree elbows
+{ search: "NON-METALLIC LIQUIDTITE 90 DEGREE ELBOW 1/2\", 1/2 inch NMLT", office: "NMLT-90-05" },
+{ search: "NON-METALLIC LIQUIDTITE 90 DEGREE ELBOW 3/4\", 3/4 inch NMLT", office: "NMLT-90-07" },
+{ search: "NON-METALLIC LIQUIDTITE 90 DEGREE ELBOW 1\", 1 inch NMLT", office: "NMLT-90-10" },
+{ search: "NON-METALLIC LIQUIDTITE 90 DEGREE ELBOW 2\", 2 inch NMLT", office: "NMLT-90-20" },
+
   { search: "PV WIRE, 10AWG-1C, COPPER - RED (per metre)", office: "W-10-1C-RPVU90-R" },
   { search: "PV WIRE, 10AWG-1C, COPPER - BLACK (per metre)", office: "W-10-1C-RPVU90-B" },
   { search: "BOND WIRE, 6AWG-1C, COPPER, BARE (per metre)", office: "W-6-1C-BARE-CU" },
@@ -950,4 +968,5 @@ renderJobs();
 </script>
 </body>
 </html>
+
 
