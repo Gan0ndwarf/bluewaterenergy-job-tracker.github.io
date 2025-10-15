@@ -880,10 +880,9 @@ document.getElementById("exportPDFBtn").onclick = () => {
   // Check required fields
   const missingFields = requiredFields.filter(f => {
     if(f.type === "photos") {
-      // Check length of the array instead of input.value
       return !(currentJob[f.id] && currentJob[f.id].length);
     } else {
-      const val = document.getElementById(f.id).value.trim();
+      const val = document.getElementById(f.id)?.value?.trim?.() || "";
       return !val;
     }
   });
@@ -893,7 +892,7 @@ document.getElementById("exportPDFBtn").onclick = () => {
       "Cannot export PDF. Please fill out the following fields:\n- " +
       missingFields.map(f => f.name).join("\n- ")
     );
-    return; // stop export
+    return;
   }
 
   // Proceed with PDF export
@@ -927,6 +926,20 @@ document.getElementById("exportPDFBtn").onclick = () => {
     doc.setFontSize(12);
   }
 
+  function renderTextBlock(text) {
+    const lines = doc.splitTextToSize(text || "", 180);
+    const lineHeight = 6;
+    lines.forEach(line => {
+      if (y + lineHeight > 280) {
+        doc.addPage();
+        y = 20;
+      }
+      doc.text(line, 10, y);
+      y += lineHeight;
+    });
+    y += 8;
+  }
+
   function renderPhotosGrid(images) {
     if (!images || !images.length) return;
     let perRow = Math.min(4, Math.ceil(Math.sqrt(images.length)));
@@ -944,29 +957,50 @@ document.getElementById("exportPDFBtn").onclick = () => {
     if (rowCount > 0) y += imgHeight + gap;
   }
 
-  section("Work Completed"); doc.text(currentJob.workCompleted || "", 10, y, { maxWidth: 180 }); y += 16;
+  // Sections with safe spacing and text wrapping
+  section("Work Completed");
+  renderTextBlock(currentJob.workCompleted);
+
   section("Inverter");
   doc.text(`Make: ${currentJob.inverter.make}`, 10, y); y += 8;
   doc.text(`Model: ${currentJob.inverter.model}`, 10, y); y += 8;
   doc.text(`Serial: ${currentJob.inverter.serial}`, 10, y); y += 8;
   renderPhotosGrid(currentJob.inverter.photos);
+
   section("Battery");
   doc.text(`Make: ${currentJob.battery.make}`, 10, y); y += 8;
   doc.text(`Model: ${currentJob.battery.model}`, 10, y); y += 8;
   doc.text(`Serial: ${currentJob.battery.serial}`, 10, y); y += 8;
   renderPhotosGrid(currentJob.battery.photos);
-  section("Parts Used"); (currentJob.parts || []).forEach(p => { doc.text(`${p.part}   Qty: ${p.qty}`, 12, y); y += 8; if (y > 260) { doc.addPage(); y = 20; } });
-  section("Work Photos"); renderPhotosGrid(currentJob.workPhotos);
-  section("Client Notes"); doc.text(currentJob.clientNotes || "", 10, y, { maxWidth: 180 }); y += 16;
-  section("Remaining Work"); doc.text(currentJob.remainingWork || "", 10, y, { maxWidth: 180 }); y += 16;
-  section("Materials Needed"); doc.text(currentJob.materialsNeeded || "", 10, y, { maxWidth: 180 }); y += 16;
+
+  section("Parts Used");
+  (currentJob.parts || []).forEach(p => {
+    if (y > 260) { doc.addPage(); y = 20; }
+    doc.text(`${p.part}   Qty: ${p.qty}`, 12, y);
+    y += 8;
+  });
+  y += 8;
+
+  section("Work Photos");
+  renderPhotosGrid(currentJob.workPhotos);
+
+  section("Client Notes");
+  renderTextBlock(currentJob.clientNotes);
+
+  section("Remaining Work");
+  renderTextBlock(currentJob.remainingWork);
+
+  section("Materials Needed");
+  renderTextBlock(currentJob.materialsNeeded);
 
   doc.save(`job_${currentJob.title || Date.now()}.pdf`);
 };
 
 renderJobs();
+
 </script>
 </body>
 </html>
+
 
 
