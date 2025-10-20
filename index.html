@@ -129,40 +129,63 @@ padding: 8px;
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
-const STORE_KEY="jobs_form_v2";
-let jobs=JSON.parse(localStorage.getItem(STORE_KEY)||"[]");
-let currentJob=null;
+const STORE_KEY = "jobs_form_v2";
+let jobs = JSON.parse(localStorage.getItem(STORE_KEY) || "[]");
+let currentJob = null;
 
-function saveJobs(){localStorage.setItem(STORE_KEY,JSON.stringify(jobs));}
-function renderJobs(){
-  const c=document.getElementById("jobsContainer"); c.innerHTML="";
-  if(!jobs.length){c.innerHTML="<i>No jobs yet</i>";return;}
-  jobs.forEach((j,i)=>{
-    const d=document.createElement("div");
-    d.className="card"; d.style.cursor="pointer";
-    d.innerHTML=`${j.title||"(untitled)"} — ${j.date||""} — ${j.projectType||""}
+function saveJobs() {
+  localStorage.setItem(STORE_KEY, JSON.stringify(jobs));
+}
+
+// ---- Debounced Auto-Save ----
+let saveTimeout;
+function scheduleSave() {
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(saveJobs, 300);
+}
+
+// ---- Render Job List ----
+function renderJobs() {
+  const c = document.getElementById("jobsContainer");
+  c.innerHTML = "";
+  if (!jobs.length) {
+    c.innerHTML = "<i>No jobs yet</i>";
+    return;
+  }
+  jobs.forEach((j, i) => {
+    const d = document.createElement("div");
+    d.className = "card";
+    d.style.cursor = "pointer";
+    d.innerHTML = `${j.title || "(untitled)"} — ${j.date || ""} — ${j.projectType || ""} 
       <button onclick="deleteJob(${i});event.stopPropagation();" style="float:right;">❌</button>`;
-    d.onclick=()=>openJob(i);
+    d.onclick = () => openJob(i);
     c.appendChild(d);
   });
 }
-function deleteJob(i){ if(confirm("Delete this job?")){ jobs.splice(i,1); saveJobs(); renderJobs(); } }
 
-const technicians=["Wil","Brandon","Liam","Conrad","Gerry","Tom"];
-// Auto-save on input and textarea changes
-document.addEventListener("input", e => {
-  if (!currentJob) return;
-  const el = e.target;
-  if (!el.id) return;
-
-  // Skip file inputs (handled separately)
-  if (el.type !== "file") {
-    currentJob[el.id] = el.value;
-    saveJobs(); // overwrite previous draft
+function deleteJob(i) {
+  if (confirm("Delete this job?")) {
+    jobs.splice(i, 1);
+    saveJobs();
+    renderJobs();
   }
-});
+}
 
-// Auto-save when photos are added (integrate into your existing setupPhotoInput)
+// ---- Create New Job ----
+function newJob() {
+  currentJob = {
+    title: "", date: "", team: [], projectType: "", shopDepart: "", arrivalTime: "",
+    workCompleted: "", inverter: { make: "", model: "", serial: "", photos: [] },
+    battery: { make: "", model: "", serial: "", photos: [] }, parts: [],
+    workPhotos: [], clientNotes: "", remainingWork: "", materialsNeeded: "",
+    leftSite: "", arrivedShop: ""
+  };
+  jobs.push(currentJob);
+  saveJobs();
+  openJob(jobs.length - 1);
+}
+
+// ---- Photo Input Setup ----
 function setupPhotoInput(inputId, photoArray, previewContainerId) {
   const input = document.getElementById(inputId);
   const preview = document.getElementById(previewContainerId);
@@ -177,7 +200,7 @@ function setupPhotoInput(inputId, photoArray, previewContainerId) {
       imgEl.onclick = () => {
         if (confirm("Remove this photo?")) {
           photoArray.splice(idx, 1);
-          saveJobs(); // save after deletion
+          saveJobs();
           renderPreview();
         }
       };
@@ -196,75 +219,50 @@ function setupPhotoInput(inputId, photoArray, previewContainerId) {
         });
         photoArray.push(dataUrl);
       }
-      saveJobs(); // save after adding photos
+      input.value = ""; // clear file input so re-adding same file works
+      saveJobs();
       renderPreview();
     };
     input.dataset.bound = "true";
   }
-
   renderPreview();
 }
 
-function newJob(){
-  currentJob={title:"",date:"",team:[],projectType:"",shopDepart:"",arrivalTime:"",
-              workCompleted:"",inverter:{make:"",model:"",serial:"",photos:[]},
-              battery:{make:"",model:"",serial:"",photos:[]},parts:[],
-              workPhotos:[],clientNotes:"",remainingWork:"",materialsNeeded:"",
-              leftSite:"",arrivedShop:""};
-  jobs.push(currentJob); saveJobs(); openJob(jobs.length-1);
-}
-function openJob(idx){
-  currentJob=jobs[idx]; currentJob.idx=idx;
-  document.getElementById("jobListView").classList.add("hidden");
-  document.getElementById("jobEditorView").classList.remove("hidden");
-  document.getElementById("jobTitle").value=currentJob.title||"";
-  document.getElementById("jobDate").value=currentJob.date||"";
-  document.getElementById("projectType").value=currentJob.projectType||"";
-  document.getElementById("shopDepart").value=currentJob.shopDepart||"";
-  document.getElementById("arrivalTime").value=currentJob.arrivalTime||"";
-  document.getElementById("workCompleted").value=currentJob.workCompleted||"";
-  document.getElementById("inverterMake").value=currentJob.inverter.make||"";
-  document.getElementById("inverterModel").value=currentJob.inverter.model||"";
-  document.getElementById("inverterSerial").value=currentJob.inverter.serial||"";
-  document.getElementById("batteryMake").value=currentJob.battery.make||"";
-  document.getElementById("batteryModel").value=currentJob.battery.model||"";
-  document.getElementById("batterySerial").value=currentJob.battery.serial||"";
-  document.getElementById("clientNotes").value=currentJob.clientNotes||"";
-  document.getElementById("remainingWork").value=currentJob.remainingWork||"";
-  document.getElementById("materialsNeeded").value=currentJob.materialsNeeded||"";
-  document.getElementById("leftSite").value=currentJob.leftSite||"";
-  document.getElementById("arrivedShop").value=currentJob.arrivedShop||"";
-  
-  renderTechs();
-  renderParts();
-  setupPhotoInput("inverterPhotos", currentJob.inverter.photos, "inverterPreview");
-  setupPhotoInput("batteryPhotos", currentJob.battery.photos, "batteryPreview");
-  setupPhotoInput("workPhotos", currentJob.workPhotos, "workPreview");
-  markRequiredFields(); 
-}
-function backToList(){ document.getElementById("jobEditorView").classList.add("hidden"); document.getElementById("jobListView").classList.remove("hidden"); renderJobs(); }
-
-function renderTechs(){
-  const c=document.getElementById("techList"); c.innerHTML="";
-  technicians.forEach(t=>{
-    const id="tech_"+t;
-    const cb=document.createElement("input");
-    cb.type="checkbox"; cb.id=id; cb.value=t;
-    if(currentJob.team&&currentJob.team.includes(t)) cb.checked=true;
-    cb.onchange=()=>{if(cb.checked){currentJob.team.push(t);}else{currentJob.team=currentJob.team.filter(x=>x!==t);} saveJobs();};
-    const lab=document.createElement("label"); lab.htmlFor=id; lab.textContent=t;
-    c.appendChild(cb); c.appendChild(lab); c.appendChild(document.createElement("br"));
+// ---- Render Tech Checkboxes ----
+const technicians = ["Wil", "Brandon", "Liam", "Conrad", "Gerry", "Tom"];
+function renderTechs() {
+  const c = document.getElementById("techList");
+  c.innerHTML = "";
+  technicians.forEach(t => {
+    const id = "tech_" + t;
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.id = id;
+    cb.value = t;
+    if (currentJob.team && currentJob.team.includes(t)) cb.checked = true;
+    cb.onchange = () => {
+      if (cb.checked) currentJob.team.push(t);
+      else currentJob.team = currentJob.team.filter(x => x !== t);
+      scheduleSave();
+    };
+    const lab = document.createElement("label");
+    lab.htmlFor = id;
+    lab.textContent = t;
+    c.appendChild(cb);
+    c.appendChild(lab);
+    c.appendChild(document.createElement("br"));
   });
 }
-function normalize(str) {
-  return str.toLowerCase().replace(/[^a-z0-9]/g, '');
-}
-// Parts
-function filterParts(){
-  const q=normalize(document.getElementById("partSearch").value.toLowerCase());
-  
-  const res=document.getElementById("partResults"); res.innerHTML="";
-  if(!q) return;
+
+// ---- Parts Functions ----
+function normalize(str) { return str.toLowerCase().replace(/[^a-z0-9]/g, ''); }
+
+function filterParts() {
+  const q = normalize(document.getElementById("partSearch").value.toLowerCase());
+  const res = document.getElementById("partResults");
+  res.innerHTML = "";
+  if (!q) return;
+
   [{search:"6/3 nmd",office:"W-NMD90-6/3C"},{search:"1 inch teck connector",office:"TEKCON-100"},{search:"HB SKYRAIL3 FLUSH MOUNT- 5.945M LONG EXTRUSION FOR CLICLOC CLAMP", office:"HB-8395-5945"},
    {search:"FLUSH MOUNT SPLICE BAR FOR SKYRAIL3 WITH BONDING WASHER", office:"HB-1946"},
   { search:"HB FLASHGUARD FLASHING KIT - MILL FINISH", office:"HB-99103" },
@@ -777,14 +775,13 @@ function filterParts(){
 { search: "NMD CABLE 4AWG-12C COPPER, 4/12 NMD", office: "W-4-12C-NMD" }
 
   ]
-
   .filter(p =>
     normalize(p.search).includes(q) ||
     normalize(p.office).includes(q)
   )
   .forEach(p => {
     const div = document.createElement("div");
-    div.textContent = `${p.office}`;
+    div.textContent = p.office;
     div.onclick = () => {
       addPart(p.office);
       res.innerHTML = "";
@@ -792,80 +789,92 @@ function filterParts(){
     res.appendChild(div);
   });
 }
-function addPart(part){
-  const qty=prompt("Enter quantity for "+part,1); if(!qty) return;
-  currentJob.parts.push({part:part,qty:qty}); saveJobs(); renderParts();
+
+function addPart(part) {
+  const qty = prompt("Enter quantity for " + part, 1);
+  if (!qty) return;
+  currentJob.parts.push({ part, qty });
+  saveJobs();
+  renderParts();
 }
-function addCustomPart(){
-  const name=prompt("Enter custom part name"); if(!name) return;
-  const qty=prompt("Enter quantity for "+name,1); if(!qty) return;
-  currentJob.parts.push({part:name,qty:qty}); saveJobs(); renderParts();
+
+function addCustomPart() {
+  const name = prompt("Enter custom part name");
+  if (!name) return;
+  const qty = prompt("Enter quantity for " + name, 1);
+  if (!qty) return;
+  currentJob.parts.push({ part: name, qty });
+  saveJobs();
+  renderParts();
 }
-function renderParts(){
-  const pt=document.getElementById("partsTable"); pt.innerHTML="";
-  (currentJob.parts||[]).forEach((p,i)=>{
-    const row=document.createElement("tr");
-    row.innerHTML=`<td>${p.part}</td>
+
+function renderParts() {
+  const pt = document.getElementById("partsTable");
+  pt.innerHTML = "";
+  (currentJob.parts || []).forEach((p, i) => {
+    const row = document.createElement("tr");
+    row.innerHTML = `<td>${p.part}</td>
       <td><input type="number" min="1" value="${p.qty}" onchange="updatePartQty(${i},this.value)"></td>
       <td><button onclick="removePart(${i})">X</button></td>`;
     pt.appendChild(row);
   });
 }
-function updatePartQty(i,val){ currentJob.parts[i].qty=val; saveJobs(); }
-function removePart(idx){ currentJob.parts.splice(idx,1); saveJobs(); renderParts(); }
 
-// Photo setup with delete
-function setupPhotoInput(inputId, photoArray, previewContainerId) {
-  const input=document.getElementById(inputId);
-  const preview=document.getElementById(previewContainerId);
-  function renderPreview(){
-    preview.innerHTML="";
-    photoArray.forEach((img,idx)=>{
-      const imgEl=document.createElement("img");
-      imgEl.src=img; imgEl.className="preview"; imgEl.title="Click to remove";
-      imgEl.onclick=()=>{ if(confirm("Remove this photo?")){ photoArray.splice(idx,1); saveJobs(); renderPreview(); } };
-      preview.appendChild(imgEl);
-    });
-  }
-  if(!input.dataset.bound){
-    input.onchange=async(e)=>{
-      const files=[...e.target.files];
-      for(const f of files){
-        const dataUrl=await new Promise(res=>{const reader=new FileReader(); reader.onload=ev=>res(ev.target.result); reader.readAsDataURL(f);});
-        photoArray.push(dataUrl);
-      }
-      saveJobs(); renderPreview();
-    };
-    input.dataset.bound="true";
-  }
-  renderPreview();
+function updatePartQty(i, val) { currentJob.parts[i].qty = val; scheduleSave(); }
+function removePart(i) { currentJob.parts.splice(i, 1); scheduleSave(); renderParts(); }
+
+// ---- Debounced Open Job (fixes iOS load timing) ----
+function openJob(idx) {
+  currentJob = jobs[idx];
+  currentJob.idx = idx;
+
+  document.getElementById("jobListView").classList.add("hidden");
+  document.getElementById("jobEditorView").classList.remove("hidden");
+
+  setTimeout(() => {
+    const setVal = (id, val = "") => document.getElementById(id).value = val || "";
+    setVal("jobTitle", currentJob.title);
+    setVal("jobDate", currentJob.date);
+    setVal("projectType", currentJob.projectType);
+    setVal("shopDepart", currentJob.shopDepart);
+    setVal("arrivalTime", currentJob.arrivalTime);
+    setVal("workCompleted", currentJob.workCompleted);
+    setVal("inverterMake", currentJob.inverter.make);
+    setVal("inverterModel", currentJob.inverter.model);
+    setVal("inverterSerial", currentJob.inverter.serial);
+    setVal("batteryMake", currentJob.battery.make);
+    setVal("batteryModel", currentJob.battery.model);
+    setVal("batterySerial", currentJob.battery.serial);
+    setVal("clientNotes", currentJob.clientNotes);
+    setVal("remainingWork", currentJob.remainingWork);
+    setVal("materialsNeeded", currentJob.materialsNeeded);
+    setVal("leftSite", currentJob.leftSite);
+    setVal("arrivedShop", currentJob.arrivedShop);
+
+    renderTechs();
+    renderParts();
+    setupPhotoInput("inverterPhotos", currentJob.inverter.photos, "inverterPreview");
+    setupPhotoInput("batteryPhotos", currentJob.battery.photos, "batteryPreview");
+    setupPhotoInput("workPhotos", currentJob.workPhotos, "workPreview");
+  }, 100); // delay ensures DOM stability on iOS
 }
 
-// Save
-document.getElementById("saveJobBtn").onclick=()=>{
-  currentJob.title=document.getElementById("jobTitle").value;
-  currentJob.date=document.getElementById("jobDate").value;
-  currentJob.projectType=document.getElementById("projectType").value;
-  currentJob.shopDepart=document.getElementById("shopDepart").value;
-  currentJob.arrivalTime=document.getElementById("arrivalTime").value;
-  currentJob.workCompleted=document.getElementById("workCompleted").value;
-  currentJob.inverter.make=document.getElementById("inverterMake").value;
-  currentJob.inverter.model=document.getElementById("inverterModel").value;
-  currentJob.inverter.serial=document.getElementById("inverterSerial").value;
-  currentJob.battery.make=document.getElementById("batteryMake").value;
-  currentJob.battery.model=document.getElementById("batteryModel").value;
-  currentJob.battery.serial=document.getElementById("batterySerial").value;
-  currentJob.clientNotes=document.getElementById("clientNotes").value;
-  currentJob.remainingWork=document.getElementById("remainingWork").value;
-  currentJob.materialsNeeded=document.getElementById("materialsNeeded").value;
-  currentJob.leftSite=document.getElementById("leftSite").value;
-  currentJob.arrivedShop=document.getElementById("arrivedShop").value;
-  saveJobs(); alert("Saved");
-};
-document.getElementById("backListBtn").onclick=backToList;
-document.getElementById("newJobBtn").onclick=newJob;
+function backToList() {
+  document.getElementById("jobEditorView").classList.add("hidden");
+  document.getElementById("jobListView").classList.remove("hidden");
+  renderJobs();
+}
 
-// Required fields for PDF
+// ---- Auto Save on Input ----
+document.addEventListener("input", e => {
+  if (!currentJob) return;
+  const el = e.target;
+  if (!el.id || el.type === "file") return;
+  currentJob[el.id] = el.value;
+  scheduleSave();
+});
+
+// ---- Required Fields Validation ----
 const requiredFields = [
   { id: "jobTitle", name: "Job Title", type: "text" },
   { id: "jobDate", name: "Date Performed", type: "text" },
@@ -873,33 +882,22 @@ const requiredFields = [
   { id: "workPhotos", name: "Photos of Work Completed", type: "photos" }
 ];
 
+// ---- PDF Export ----
 document.getElementById("exportPDFBtn").onclick = () => {
-  // Save first
   document.getElementById("saveJobBtn").click();
 
-  // Check required fields
-  const missingFields = requiredFields.filter(f => {
-    if(f.type === "photos") {
-      return !(currentJob[f.id] && currentJob[f.id].length);
-    } else {
-      const val = document.getElementById(f.id)?.value?.trim?.() || "";
-      return !val;
-    }
+  const missing = requiredFields.filter(f => {
+    if (f.type === "photos") return !(currentJob[f.id] && currentJob[f.id].length);
+    return !document.getElementById(f.id).value.trim();
   });
-
-  if (missingFields.length) {
-    alert(
-      "Cannot export PDF. Please fill out the following fields:\n- " +
-      missingFields.map(f => f.name).join("\n- ")
-    );
+  if (missing.length) {
+    alert("Cannot export PDF. Please fill out:\n- " + missing.map(f => f.name).join("\n- "));
     return;
   }
 
-  // Proceed with PDF export
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
   const blue = [11, 105, 255], orange = [255, 106, 0];
-
   doc.setFillColor(...blue);
   doc.rect(0, 0, 210, 20, "F");
   doc.setTextColor(255, 255, 255);
@@ -909,98 +907,82 @@ document.getElementById("exportPDFBtn").onclick = () => {
   let y = 30;
   doc.setTextColor(0, 0, 0);
   doc.setFontSize(12);
-  doc.text(`Date: ${currentJob.date}`, 10, y); y += 8;
-  doc.text(`Team: ${(currentJob.team || []).join(", ")}`, 10, y); y += 8;
-  doc.text(`Project Type: ${currentJob.projectType}`, 10, y); y += 8;
-  doc.text(`Shop Depart: ${currentJob.shopDepart}`, 10, y); y += 8;
-  doc.text(`Arrival Time: ${currentJob.arrivalTime}`, 10, y); y += 8;
-  doc.text(`Left Site: ${currentJob.leftSite}`, 10, y); y += 8;
-  doc.text(`Arrived Shop: ${currentJob.arrivedShop}`, 10, y); y += 10;
 
-  function section(title) {
+  const addLine = txt => { doc.text(txt, 10, y); y += 8; };
+  const section = title => {
     doc.setTextColor(...orange);
     doc.setFontSize(14);
     doc.text(title, 10, y);
     y += 8;
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(12);
-  }
-
-  function renderTextBlock(text) {
-    const lines = doc.splitTextToSize(text || "", 180);
-    const lineHeight = 6;
-    lines.forEach(line => {
-      if (y + lineHeight > 280) {
-        doc.addPage();
-        y = 20;
-      }
-      doc.text(line, 10, y);
-      y += lineHeight;
-    });
-    y += 8;
-  }
-
-  function renderPhotosGrid(images) {
-    if (!images || !images.length) return;
-    let perRow = Math.min(4, Math.ceil(Math.sqrt(images.length)));
+  };
+  const renderPhotosGrid = imgs => {
+    if (!imgs || !imgs.length) return;
     const gap = 5;
-    const imgWidth = (180 - (perRow - 1) * gap) / perRow;
-    const imgHeight = imgWidth * 0.75;
-    let x = 10, rowCount = 0;
-    images.forEach((img) => {
+    const perRow = Math.min(4, Math.ceil(Math.sqrt(imgs.length)));
+    const imgW = (180 - (perRow - 1) * gap) / perRow;
+    const imgH = imgW * 0.75;
+    let x = 10, count = 0;
+    imgs.forEach(img => {
       const type = img.startsWith("data:image/png") ? "PNG" : "JPEG";
-      if (y + imgHeight > 280) { doc.addPage(); y = 20; }
-      doc.addImage(img, type, x, y, imgWidth, imgHeight);
-      x += imgWidth + gap; rowCount++;
-      if (rowCount >= perRow) { x = 10; y += imgHeight + gap; rowCount = 0; }
+      if (y + imgH > 270) { doc.addPage(); y = 20; }
+      doc.addImage(img, type, x, y, imgW, imgH);
+      x += imgW + gap; count++;
+      if (count >= perRow) { x = 10; y += imgH + gap; count = 0; }
     });
-    if (rowCount > 0) y += imgHeight + gap;
-  }
+    if (count > 0) y += imgH + gap;
+  };
 
-  // Sections with safe spacing and text wrapping
+  addLine(`Date: ${currentJob.date}`);
+  addLine(`Team: ${(currentJob.team || []).join(", ")}`);
+  addLine(`Project Type: ${currentJob.projectType}`);
+  addLine(`Shop Depart: ${currentJob.shopDepart}`);
+  addLine(`Arrival Time: ${currentJob.arrivalTime}`);
+  addLine(`Left Site: ${currentJob.leftSite}`);
+  addLine(`Arrived Shop: ${currentJob.arrivedShop}`);
+  y += 10;
+
   section("Work Completed");
-  renderTextBlock(currentJob.workCompleted);
+  const textLines = doc.splitTextToSize(currentJob.workCompleted || "", 180);
+  doc.text(textLines, 10, y);
+  y += textLines.length * 6 + 10; // dynamic spacing fix
 
   section("Inverter");
-  doc.text(`Make: ${currentJob.inverter.make}`, 10, y); y += 8;
-  doc.text(`Model: ${currentJob.inverter.model}`, 10, y); y += 8;
-  doc.text(`Serial: ${currentJob.inverter.serial}`, 10, y); y += 8;
+  addLine(`Make: ${currentJob.inverter.make}`);
+  addLine(`Model: ${currentJob.inverter.model}`);
+  addLine(`Serial: ${currentJob.inverter.serial}`);
   renderPhotosGrid(currentJob.inverter.photos);
 
   section("Battery");
-  doc.text(`Make: ${currentJob.battery.make}`, 10, y); y += 8;
-  doc.text(`Model: ${currentJob.battery.model}`, 10, y); y += 8;
-  doc.text(`Serial: ${currentJob.battery.serial}`, 10, y); y += 8;
+  addLine(`Make: ${currentJob.battery.make}`);
+  addLine(`Model: ${currentJob.battery.model}`);
+  addLine(`Serial: ${currentJob.battery.serial}`);
   renderPhotosGrid(currentJob.battery.photos);
 
   section("Parts Used");
   (currentJob.parts || []).forEach(p => {
+    addLine(`${p.part}   Qty: ${p.qty}`);
     if (y > 260) { doc.addPage(); y = 20; }
-    doc.text(`${p.part}   Qty: ${p.qty}`, 12, y);
-    y += 8;
   });
-  y += 8;
 
-  section("Work Photos");
-  renderPhotosGrid(currentJob.workPhotos);
-
-  section("Client Notes");
-  renderTextBlock(currentJob.clientNotes);
-
-  section("Remaining Work");
-  renderTextBlock(currentJob.remainingWork);
-
-  section("Materials Needed");
-  renderTextBlock(currentJob.materialsNeeded);
+  section("Work Photos"); renderPhotosGrid(currentJob.workPhotos);
+  section("Client Notes"); const cl = doc.splitTextToSize(currentJob.clientNotes || "", 180); doc.text(cl, 10, y); y += cl.length * 6 + 10;
+  section("Remaining Work"); const rw = doc.splitTextToSize(currentJob.remainingWork || "", 180); doc.text(rw, 10, y); y += rw.length * 6 + 10;
+  section("Materials Needed"); const mn = doc.splitTextToSize(currentJob.materialsNeeded || "", 180); doc.text(mn, 10, y);
 
   doc.save(`job_${currentJob.title || Date.now()}.pdf`);
 };
 
-renderJobs();
-
+// ---- Init ----
+document.getElementById("newJobBtn").onclick = newJob;
+document.getElementById("backListBtn").onclick = backToList;
+document.getElementById("saveJobBtn").onclick = () => { saveJobs(); alert("Saved"); };
+window.addEventListener("DOMContentLoaded", renderJobs);
 </script>
 </body>
 </html>
+
 
 
 
