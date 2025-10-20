@@ -159,21 +159,28 @@ function deleteJob(i) {
 }
 
 // ---------- AUTO-SAVE ----------
+// Auto-save as user types or changes text (handles nested fields correctly)
 document.addEventListener("input", e => {
   if (!currentJob) return;
   const el = e.target;
-  if (!el.id) return;
-  if (el.type !== "file") {
-    if (el.id.startsWith("inverter") || el.id.startsWith("battery")) {
-      const [section, key] = el.id.match(/(inverter|battery)(.*)/).slice(1);
-      const normalizedKey = key.charAt(0).toLowerCase() + key.slice(1);
-      currentJob[section][normalizedKey] = el.value;
-    } else {
-      currentJob[el.id] = el.value;
-    }
-    scheduleSave();
+  if (!el.id || el.type === "file") return;
+
+  const val = el.value;
+
+  // Handle nested inverter and battery fields properly
+  if (el.id.startsWith("inverter")) {
+    const key = el.id.replace("inverter", "").toLowerCase();
+    currentJob.inverter[key] = val;
+  } else if (el.id.startsWith("battery")) {
+    const key = el.id.replace("battery", "").toLowerCase();
+    currentJob.battery[key] = val;
+  } else {
+    currentJob[el.id] = val;
   }
+
+  saveJobs(); // overwrite previous draft
 });
+
 
 // ---------- PHOTO INPUT ----------
 function setupPhotoInput(inputId, photoArray, previewContainerId) {
@@ -967,6 +974,7 @@ renderJobs();
 </script>
 </body>
 </html>
+
 
 
 
