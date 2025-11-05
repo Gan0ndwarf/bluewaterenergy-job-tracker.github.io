@@ -153,6 +153,10 @@ padding: 8px;
 
   <h3>Remaining Work to be Completed</h3>
   <textarea id="remainingWork" rows="4"></textarea><br><br>
+  
+<h3>Remaining Work Related Photos (Optional)</h3>
+  <input type="file" id="remainingWorkPhotos" accept="image/*" multiple>
+  <div id="remainingPreview" class="photoGrid"></div><br>
 
   <h3>Materials Needed</h3>
   <textarea id="materialsNeeded" rows="4"></textarea><br><br>
@@ -304,13 +308,24 @@ async function setupPhotoInput(inputId, photoIds = [], previewId) {
 
 
 function newJob(){
-  currentJob={title:"",date:"",team:[],projectType:"",shopDepart:"",arrivalTime:"",
-              workCompleted:"",inverter:{make:"",model:"",serial:"",photos:[]},
-              battery:{make:"",model:"",serial:"",photos:[]},parts:[],
-              workPhotos:[],clientNotes:"",remainingWork:"",materialsNeeded:"",
-              leftSite:"",arrivedShop:""};
+  currentJob = {
+    title:"",date:"",team:[],projectType:"",shopDepart:"",arrivalTime:"",
+    workCompleted:"",
+    inverter:{make:"",model:"",serial:"",photoIds:[]},
+    battery:{make:"",model:"",serial:"",photoIds:[]},
+    parts:[],
+    partsPhotoIds:[],
+    workPhotoIds:[],
+    clientNotes:"",
+    remainingWork:"",
+    remainingWorkPhotoIds:[], 
+    materialsNeeded:"",
+    leftSite:"",
+    arrivedShop:""
+  };
   jobs.push(currentJob); saveJobs(); openJob(jobs.length-1);
 }
+
 function openJob(idx){
   currentJob=jobs[idx]; currentJob.idx=idx;
   document.getElementById("jobListView").classList.add("hidden");
@@ -339,6 +354,8 @@ function openJob(idx){
 setupPhotoInput("batteryPhotos", currentJob.battery.photoIds || [], "batteryPreview");
 setupPhotoInput("workPhotos", currentJob.workPhotoIds || [], "workPreview");
 setupPhotoInput("partsPhotos", currentJob.partsPhotoIds || [], "partsPreview");
+currentJob.remainingWorkPhotoIds = currentJob.remainingWorkPhotoIds || [];
+setupPhotoInput("remainingWorkPhotos", currentJob.remainingWorkPhotoIds, "remainingPreview");
 
 
 
@@ -876,7 +893,11 @@ function filterParts(){
 { search: "NMD CABLE 4AWG-4C COPPER, 4/4 NMD", office: "W-4-4C-NMD" },
 { search: "NMD CABLE 4AWG-6C COPPER, 4/6 NMD", office: "W-4-6C-NMD" },
 { search: "NMD CABLE 4AWG-8C COPPER, 4/8 NMD", office: "W-4-8C-NMD" },
-{ search: "NMD CABLE 4AWG-12C COPPER, 4/12 NMD", office: "W-4-12C-NMD" }
+{ search: "NMD CABLE 4AWG-12C COPPER, 4/12 NMD", office: "W-4-12C-NMD" },
+
+{search:"RSD Pushbutton Emergency Stop Twist Release Button, M22-PVT", office:"M22-PVT"},
+{search:"RSD Contact Block, RSD Terminal", office:"M22-K01"},
+{search:"RSD Enclosure, surface mount enclosure",office:"M22-I1-PG"}
 
   ]
 
@@ -941,7 +962,7 @@ document.getElementById("saveJobBtn").onclick=()=>{
 currentJob.battery.photoIds = currentJob.battery.photoIds || [];
 currentJob.workPhotoIds = currentJob.workPhotoIds || [];
 currentJob.partsPhotoIds = currentJob.partsPhotoIds || [];
-
+currentJob.remainingPhotoIds = currentJob.remainingPhotoIds || [];
 
   saveJobs(); alert("Saved");
 };
@@ -1110,6 +1131,8 @@ async function renderPhotoSection(title, photoIds = []) {
 
   section("Remaining Work");
   renderTextBlock(currentJob.remainingWork);
+  await renderPhotoSection("Remaining Work Related Photos", currentJob.remainingWorkPhotoIds);
+
 
   section("Materials Needed");
   renderTextBlock(currentJob.materialsNeeded);
