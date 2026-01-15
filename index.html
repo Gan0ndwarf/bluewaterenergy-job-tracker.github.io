@@ -1503,7 +1503,35 @@ document.getElementById("exportPDFBtn").onclick = async () => {
     y += 8;
   }
 
- 
+ async function sanitizeForPDF(blob, targetWidth = 900) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(blob);
+
+    img.onload = () => {
+      const scale = targetWidth / img.width;
+      const w = targetWidth;
+      const h = Math.round(img.height * scale);
+
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+
+      const ctx = canvas.getContext("2d", { colorSpace: "srgb" });
+
+      // Kill HDR transparency / gamma bugs
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, w, h);
+
+      // Convert Display-P3 / 10-bit → sRGB / 8-bit
+      ctx.drawImage(img, 0, 0, w, h);
+
+      URL.revokeObjectURL(url);
+
+      canvas.toBlob(b => {
+        const reader = new FileReader();
+        reader.o
+       
   //Keep this one?
 // --- Load and render photo sections directly from IndexedDB ---
 async function renderPhotoSection(title, photoIds = []) {
@@ -1520,11 +1548,14 @@ async function renderPhotoSection(title, photoIds = []) {
     const blob = await getBlob(id);
     if (!blob) continue;
 
-    const dataUrl = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = e => resolve(e.target.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
+  //  const dataUrl = await new Promise((resolve, reject) => {
+    //  const reader = new FileReader();
+     // reader.onload = e => resolve(e.target.result);
+     // reader.onerror = reject;
+     // reader.readAsDataURL(blob);
+   const dataUrl = await sanitizeForPDF(blob);
+const type = "JPEG";
+   
     });
 
     const type = dataUrl.startsWith("data:image/png") ? "PNG" : "JPEG";
@@ -1621,6 +1652,7 @@ renderJobs();
 </script>
 </body>
 </html>
+
 
 
 
