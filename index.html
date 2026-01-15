@@ -1556,9 +1556,9 @@ async function renderPhotoSection(title, photoIds = []) {
    const dataUrl = await sanitizeForPDF(blob);
 const type = "JPEG";
    
-    });
+  //  });
 
-    const type = dataUrl.startsWith("data:image/png") ? "PNG" : "JPEG";
+  //  const type = dataUrl.startsWith("data:image/png") ? "PNG" : "JPEG";
     if (y + imgHeight > 280) { 
       doc.addPage();
       y = 20;
@@ -1652,6 +1652,7 @@ renderJobs();
 </script>
 </body>
 </html>
+
 
 
 
