@@ -148,7 +148,7 @@ padding: 8px;
   <input type="file" id="workPhotos" accept="image/*" multiple>
   <div id="workPreview"></div><br>
 
-  <h3>What We Said to Client</h3>
+  <h3>Communications Notes</h3>
   <textarea id="clientNotes" rows="4"></textarea><br><br>
 
   <h3>Remaining Work to be Completed</h3>
@@ -161,6 +161,15 @@ padding: 8px;
   <h3>Materials Needed</h3>
   <textarea id="materialsNeeded" rows="4"></textarea><br><br>
 
+<h3>Lawn Sign Left?</h3>
+<label>
+  <input type="radio" name="lawnSign" value="Yes" id="lawnSignYes"> Yes
+</label>
+<label>
+  <input type="radio" name="lawnSign" value="No" id="lawnSignNo"> No
+</label>
+<br><br>
+ 
   <label>Left Site Time:<br>
     <input type="time" id="leftSite">
   </label><br><br>
@@ -364,6 +373,7 @@ function newJob(){
     remainingWork:"",
     remainingWorkPhotoIds:[], 
     materialsNeeded:"",
+    lawnSign:"", 
     leftSite:"",
     arrivedShop:""
   };
@@ -389,6 +399,11 @@ function openJob(idx){
   document.getElementById("clientNotes").value=currentJob.clientNotes||"";
   document.getElementById("remainingWork").value=currentJob.remainingWork||"";
   document.getElementById("materialsNeeded").value=currentJob.materialsNeeded||"";
+ if (currentJob.lawnSign === "Yes") {
+  document.getElementById("lawnSignYes").checked = true;
+} else if (currentJob.lawnSign === "No") {
+  document.getElementById("lawnSignNo").checked = true;
+}
   document.getElementById("leftSite").value=currentJob.leftSite||"";
   document.getElementById("arrivedShop").value=currentJob.arrivedShop||"";
   
@@ -1469,7 +1484,13 @@ function renderParts(){
 function updatePartQty(i,val){ currentJob.parts[i].qty=val; saveJobs(); }
 function removePart(idx){ currentJob.parts.splice(idx,1); saveJobs(); renderParts(); }
 
-
+ //save lawn sign info
+document.getElementById("lawnSignYes").onchange =
+document.getElementById("lawnSignNo").onchange = () => {
+  const selected = document.querySelector('input[name="lawnSign"]:checked');
+  currentJob.lawnSign = selected ? selected.value : "";
+  saveJobs();
+};
 
 // Save
 document.getElementById("saveJobBtn").onclick=()=>{
@@ -1552,7 +1573,7 @@ document.getElementById("exportPDFBtn").onclick = async () => {
   doc.text(`Arrival Time: ${currentJob.arrivalTime}`, 10, y); y += 8;
   doc.text(`Left Site: ${currentJob.leftSite}`, 10, y); y += 8;
   doc.text(`Arrived Shop: ${currentJob.arrivedShop}`, 10, y); y += 10;
-
+  doc.text(`Lawn Sign Left: ${currentJob.lawnSign || "N/A"}`, 10, y); y += 6;
   function section(title) {
     doc.setTextColor(...orange);
     doc.setFontSize(14);
